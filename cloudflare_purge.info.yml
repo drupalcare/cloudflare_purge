@@ -1,0 +1,6 @@
+name: 'Cloudflare Purge'
+type: module
+description: 'Allow customers to purge cached resources from Cloudflare.'
+package: CDN
+core: 8.x
+core_version_requirement: ^8 || ^9

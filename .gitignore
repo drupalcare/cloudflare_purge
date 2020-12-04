@@ -1,0 +1,4 @@
+# gitignore template for Drupal 8 projects
+#
+
+.DS_Store
