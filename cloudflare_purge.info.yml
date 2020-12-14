@@ -4,3 +4,4 @@ description: 'Allow customers to purge cached resources from Cloudflare.'
 package: CDN
 core: 8.x
 core_version_requirement: ^8 || ^9
+configure: cloudflare_purge.form
