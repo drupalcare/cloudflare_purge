@@ -9,6 +9,15 @@ It uses custom CSRF token in Drupal.  It also uses Guzzle HTTP client request
 for all API calls. So it's not vulnerable to CSRF exploits and avoids security
 risk.
 
+When can I use this module?
+
+1- If your Drupal site is activated with Cloudflare through 
+<a target="_blank" href="https://www.cloudflare.com/partners/">
+	Certified Cloudflare Hosting Partner</a>.
+
+2- If your Drupal site is activated with Cloudflare through the cloudflare module and the
+ purge module is not installed.
+
 # DEPENDENCIES
 None
 
@@ -47,9 +56,9 @@ The module uses their API, that's all.
 
 * Read more about Cloudflare's API:
    https://api.cloudflare.com/#zone-purge-all-files
+   https://support.cloudflare.com/hc/en-us/articles/201883834-Using-CloudFlare-and-Drupal-Five-Easy-Recommended-Steps
 
 * Project page: https://www.drupal.org/project/cloudflare_purge
 
 * To submit bug reports and feature suggestions, or to track changes:
    https://drupal.org/project/issues/cloudflare_purge
-
