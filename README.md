@@ -10,13 +10,14 @@ for all API calls. So it's not vulnerable to CSRF exploits and avoids security
 risk.
 
 When can I use this module?
-
-1- If your Drupal site is activated with Cloudflare through 
-<a target="_blank" href="https://www.cloudflare.com/partners/">
-	Certified Cloudflare Hosting Partner</a>.
-
-2- If your Drupal site is activated with Cloudflare through the cloudflare module and the
- purge module is not installed.
+You can use this module in two possible scenarios:
+You activate cloudflare through <a target="_blank" 
+href="https://www.cloudflare.com/partners/">Certified Cloudflare Hosting Partner
+</a>, but you don't have the cloudflare module and you can't purge cloudflare 
+cache from your Drupal site. You activate cloudflare through the Clouldflare 
+module and you can't install the purge module for whatever reason. In this case 
+the Cloudflarepurger module can't be enabled and you will need some way to clear 
+cloudflare cache.
 
 # DEPENDENCIES
 None
