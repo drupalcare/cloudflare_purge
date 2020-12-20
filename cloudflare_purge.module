@@ -38,10 +38,3 @@ function cloudflare_purge_help($route_name, RouteMatchInterface $route_match) {
 
   return NULL;
 }
-
-/**
- * Implements hook_uninstall().
- */
-function cloudflare_purge_uninstall() {
-  \Drupal::configFactory()->getEditable('cloudflare_purge_form.settings')->delete();
-}
