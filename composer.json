@@ -1,28 +1,18 @@
 {
-  "name": "drupal/cloudflare_purge",
-  "description": "Allow customers to purge cached resources from Cloudflare.",
-  "type": "drupal-module",
-  "homepage": "https://drupal.org/project/cloudflare_purge",
-  "authors": [
-    {
-      "name": "Alaa Haddad (alaahaddad.com)",
-      "homepage": "https://www.drupal.org/u/flashwebcenter",
-      "role": "Maintainer"
+    "name": "drupal/cloudflare_purge",
+    "description": "Allow customers to purge cached resources from Cloudflare.",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Alaa Haddad (alaahaddad.com)",
+            "homepage": "https://www.drupal.org/u/flashwebcenter",
+            "role": "Maintainer"
+        }
+    ],
+    "homepage": "https://drupal.org/project/cloudflare_purge",
+    "support": {
+        "issues": "https://drupal.org/project/issues/cloudflare_purge",
+        "source": "https://cgit.drupalcode.org/cloudflare_purge"
     }
-  ],
-  "support": {
-    "issues": "https://drupal.org/project/issues/cloudflare_purge",
-    "source": "https://cgit.drupalcode.org/cloudflare_purge"
-  },
-  "license": "GPL-2.0+",
-  "minimum-stability": "dev",
-  "require": {
-    "php": ">=7.3.0",
-    "drupal/core": "^8.7||^9.0"
-  },
-  "autoload": {
-    "psr-4": {
-      "Drupal\\cloudflare_purge\\": "src/"
-    }
-  }
 }
