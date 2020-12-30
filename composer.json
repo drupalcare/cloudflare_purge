@@ -13,6 +13,6 @@
     "homepage": "https://drupal.org/project/cloudflare_purge",
     "support": {
         "issues": "https://drupal.org/project/issues/cloudflare_purge",
-        "source": "https://cgit.drupalcode.org/cloudflare_purge"
+        "source": "https://git.drupalcode.org/project/cloudflare_purge"
     }
 }
