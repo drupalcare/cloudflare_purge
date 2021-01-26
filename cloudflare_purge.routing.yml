@@ -4,7 +4,7 @@ cloudflare_purge.form:
     _title: 'Cloudflare Credentials'
     _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeForm'
   requirements:
-    _permission: 'Cloudflare Purge'
+    _permission: 'administer site configuration'
 cloudflare_purge.cache:
   path: '/admin/config/cloudflare/purge'
   defaults:
@@ -13,5 +13,5 @@ cloudflare_purge.cache:
   options:
     _admin_route: TRUE
   requirements:
-    _permission: 'Cloudflare Purge'
+    _permission: 'administer site configuration'
     _csrf_token: 'TRUE'
