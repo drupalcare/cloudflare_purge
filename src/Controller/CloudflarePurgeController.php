@@ -9,6 +9,7 @@ use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\cloudflare_purge\CloudflarePurgeCredentials;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 
 /**
  * Returns responses for cloudflare_purge module routes.
@@ -120,7 +121,7 @@ class CloudflarePurgeController extends ControllerBase {
    */
   protected function getValueFromSettingsOrConfig(string $name) {
     $valueFromSettings = $this->getCredentials();
-    $valueFromConfig   = $this->configFactory->get('cloudflare_purge_form.settings');
+    $valueFromConfig   = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
     return $valueFromSettings[$name] ?: $valueFromConfig->get($name);
   }
 

@@ -18,7 +18,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
    *
    * @var string
    */
-  public const SETTINGS = 'cloudflare_purge_form.settings';
+  public const SETTINGS = 'cloudflare_purge.settings';
   /**
    * Log activity when user enter credentials.
    *

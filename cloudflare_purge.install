@@ -10,6 +10,8 @@
  * Developer:    Alaa Haddad https://www.alaahaddad.com.
  */
 
+use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
+
 /**
  * Implements hook_uninstall().
  */
@@ -18,6 +20,6 @@ function cloudflare_purge_uninstall($is_syncing) {
     return;
   }
   \Drupal::configFactory()
-    ->getEditable('cloudflare_purge_form.settings')
+    ->getEditable(CloudflarePurgeForm::SETTINGS)
     ->delete();
 }
