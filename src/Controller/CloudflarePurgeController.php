@@ -93,7 +93,8 @@ class CloudflarePurgeController extends ControllerBase {
   public function purgeAll(): RedirectResponse {
     $zoneId = $this->getValueFromSettingsOrConfig('zone_id');
     $authorization = $this->getValueFromSettingsOrConfig('authorization');
-    if ($zoneId != NULL && $authorization != NULL) {
+
+    if (isset($zoneId) && isset($authorization)) {
       $results = CloudflarePurgeCredentials::cfPurgeCache($zoneId, $authorization);
       if ($results == 200) {
         $this->messenger()->addMessage($this->t('Cloudflare was purged successfully.'));
@@ -122,7 +123,7 @@ class CloudflarePurgeController extends ControllerBase {
   protected function getValueFromSettingsOrConfig(string $name) {
     $valueFromSettings = $this->getCredentials();
     $valueFromConfig   = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
-    return $valueFromSettings[$name] ?: $valueFromConfig->get($name);
+    return isset($valueFromSettings) && isset($valueFromSettings[$name]) ? $valueFromSettings[$name] : $valueFromConfig->get($name);
   }
 
 }
