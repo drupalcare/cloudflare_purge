@@ -1,3 +1,10 @@
+cloudflare_purge.admin:
+  path: '/admin/config/cloudflare-purge'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Cloudflare Purge'
+  requirements:
+    _permission: 'Cloudflare Purge'
 cloudflare_purge.form:
   path: '/admin/config/cloudflare-purge-form'
   defaults:
