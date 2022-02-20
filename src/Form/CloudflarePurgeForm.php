@@ -84,7 +84,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       '#title' => t('Zone ID'),
       '#size' => 60,
       '#required' => TRUE,
-      '#default_value' => $this->isOverridden('zone_id') ?: $config->get('zone_id'),
+      '#default_value' => $this->isOverridden('zone_id') ?? $config->get('zone_id'),
       '#disabled' => $this->isOverridden('zone_id'),
       '#attributes' => [
         'placeholder' => [
@@ -98,7 +98,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       '#title' => t('Authorization'),
       '#size' => 60,
       '#required' => TRUE,
-      '#default_value' => $this->isOverridden('authorization') ?: $config->get('authorization'),
+      '#default_value' => $this->isOverridden('authorization') ?? $config->get('authorization'),
       '#disabled' => $this->isOverridden('authorization'),
       '#attributes' => [
         'placeholder' => [
