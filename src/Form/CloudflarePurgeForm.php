@@ -79,34 +79,52 @@ class CloudflarePurgeForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state):array {
     $config = $this->config(static::SETTINGS);
 
-    $form['cloudflare_purge_form']['zone_id'] = [
-      '#type' => 'textfield',
-      '#title' => t('Zone ID'),
-      '#size' => 60,
-      '#required' => TRUE,
-      '#default_value' => $this->isOverridden('zone_id') ?? $config->get('zone_id'),
-      '#disabled' => $this->isOverridden('zone_id'),
-      '#attributes' => [
-        'placeholder' => [
-          'Zone ID',
+    if (!$this->isOverridden('zone_id')) {
+      $form['cloudflare_purge_form']['zone_id'] = [
+        '#type' => 'textfield',
+        '#title' => t('Zone ID'),
+        '#size' => 60,
+        '#required' => TRUE,
+        '#default_value' => $config->get('zone_id'),
+        '#attributes' => [
+          'placeholder' => [
+            t('Zone ID'),
+          ],
         ],
-      ],
-      '#description' => t('Enter Cloudflare Zone Id.'),
-    ];
-    $form['cloudflare_purge_form']['authorization'] = [
-      '#type' => 'textfield',
-      '#title' => t('Authorization'),
-      '#size' => 60,
-      '#required' => TRUE,
-      '#default_value' => $this->isOverridden('authorization') ?? $config->get('authorization'),
-      '#disabled' => $this->isOverridden('authorization'),
-      '#attributes' => [
-        'placeholder' => [
-          'Authorization',
+        '#description' => t('Enter Cloudflare Zone ID.'),
+      ];
+    }
+    else {
+      $form['cloudflare_purge_form']['zone_id'] = [
+        '#type' => 'item',
+        '#title' => t('Zone ID'),
+        '#markup' => t('Zone ID is currently being overriden in <em>settings.php</em>.'),
+      ];
+    }
+
+    if (!$this->isOverridden('authorization')) {
+      $form['cloudflare_purge_form']['authorization'] = [
+        '#type' => 'textfield',
+        '#title' => t('Authorization'),
+        '#size' => 60,
+        '#required' => TRUE,
+        '#default_value' => $config->get('authorization'),
+        '#attributes' => [
+          'placeholder' => [
+            t('Authorization'),
+          ],
         ],
-      ],
-      '#description' => t('Enter Cloudflare Authorization.'),
-    ];
+        '#description' => t('Enter Cloudflare Authorization.'),
+      ];
+    }
+    else {
+      $form['cloudflare_purge_form']['authorization'] = [
+        '#type' => 'item',
+        '#title' => t('Authorization'),
+        '#markup' => t('Authorization is currently being overriden in <em>settings.php</em>.'),
+      ];
+    }
+
     return parent::buildForm($form, $form_state);
 
   }
