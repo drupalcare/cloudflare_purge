@@ -10,11 +10,13 @@ use Drupal\cloudflare_purge\CloudflarePurgeCredentials;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Returns responses for cloudflare_purge module routes.
  */
 class CloudflarePurgeController extends ControllerBase {
+
   /**
    * Store the settings var.
    *
@@ -37,16 +39,28 @@ class CloudflarePurgeController extends ControllerBase {
   protected $logger;
 
   /**
+   * A request stack symfony instance.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack;
+
+  /**
    * Get the config and logger.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   Config Factory.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   Drupal Logger.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
+   *   A request stack symfony instance.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, LoggerChannelInterface $logger) {
+  public function __construct(ConfigFactoryInterface $config_factory,
+                              LoggerChannelInterface $logger,
+                              RequestStack           $request_stack) {
     $this->configFactory = $config_factory;
     $this->logger = $logger;
+    $this->requestStack = $request_stack;
     $this->getCredentials();
   }
 
@@ -56,7 +70,8 @@ class CloudflarePurgeController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('cloudflare_purge.logger.channel.cloudflare_purge')
+      $container->get('cloudflare_purge.logger.channel.cloudflare_purge'),
+      $container->get('request_stack'),
     );
   }
 
@@ -64,8 +79,13 @@ class CloudflarePurgeController extends ControllerBase {
    * Stay on the same page.
    */
   public function getCurrentUrl() {
-    $request = \Drupal::request();
-    return $request->server->get('HTTP_REFERER');
+    $request = $this->requestStack->getCurrentRequest();
+    if ($request->server->get('HTTP_REFERER')) {
+      return $request->server->get('HTTP_REFERER');
+    }
+    else {
+      return base_path();
+    }
   }
 
   /**
@@ -97,14 +117,17 @@ class CloudflarePurgeController extends ControllerBase {
     if (!empty($zoneId) && !empty($authorization)) {
       $results = CloudflarePurgeCredentials::cfPurgeCache($zoneId, $authorization);
       if ($results == 200) {
-        $this->messenger()->addMessage($this->t('Cloudflare was purged successfully.'));
+        $this->messenger()
+          ->addMessage($this->t('Cloudflare was purged successfully.'));
       }
       else {
-        $this->messenger()->addError($this->t('An error happened while clearing cloudflare, check drupal log for more info.'));
+        $this->messenger()
+          ->addError($this->t('An error happened while clearing cloudflare, check drupal log for more info.'));
       }
     }
     else {
-      $this->messenger()->addError($this->t('Please insert Cloudflare credentials.'));
+      $this->messenger()
+        ->addError($this->t('Please insert Cloudflare credentials.'));
     }
 
     return new RedirectResponse($this->getCurrentUrl());
@@ -122,7 +145,7 @@ class CloudflarePurgeController extends ControllerBase {
    */
   protected function getValueFromSettingsOrConfig(string $name) {
     $valueFromSettings = $this->getCredentials();
-    $valueFromConfig   = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
+    $valueFromConfig = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
     return $valueFromSettings[$name] ?? $valueFromConfig->get($name);
   }
 

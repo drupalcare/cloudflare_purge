@@ -82,7 +82,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     if (!$this->isOverridden('zone_id')) {
       $form['cloudflare_purge_form']['zone_id'] = [
         '#type' => 'textfield',
-        '#title' => t('Zone ID'),
+        '#title' => $this->t('Zone ID'),
         '#size' => 60,
         '#required' => TRUE,
         '#default_value' => $config->get('zone_id'),
@@ -91,14 +91,14 @@ class CloudflarePurgeForm extends ConfigFormBase {
             t('Zone ID'),
           ],
         ],
-        '#description' => t('Enter Cloudflare Zone ID.'),
+        '#description' => $this->t('Enter Cloudflare Zone ID.'),
       ];
     }
     else {
       $form['cloudflare_purge_form']['zone_id'] = [
         '#type' => 'item',
-        '#title' => t('Zone ID'),
-        '#markup' => t('Zone ID is currently being overriden in <em>settings.php</em>.'),
+        '#title' => $this->t('Zone ID'),
+        '#markup' => $this->t('Zone ID is currently being overriden in <em>settings.php</em>.'),
       ];
     }
 
@@ -111,17 +111,17 @@ class CloudflarePurgeForm extends ConfigFormBase {
         '#default_value' => $config->get('authorization'),
         '#attributes' => [
           'placeholder' => [
-            t('Authorization'),
+            $this->t('Authorization'),
           ],
         ],
-        '#description' => t('Enter Cloudflare Authorization.'),
+        '#description' => $this->t('Enter Cloudflare Authorization.'),
       ];
     }
     else {
       $form['cloudflare_purge_form']['authorization'] = [
         '#type' => 'item',
-        '#title' => t('Authorization'),
-        '#markup' => t('Authorization is currently being overriden in <em>settings.php</em>.'),
+        '#title' => $this->t('Authorization'),
+        '#markup' => $this->t('Authorization is currently being overriden in <em>settings.php</em>.'),
       ];
     }
 
