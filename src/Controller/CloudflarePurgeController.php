@@ -2,14 +2,14 @@
 
 namespace Drupal\cloudflare_purge\Controller;
 
+use Drupal\cloudflare_purge\CloudflarePurgeCredentials;
+use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Site\Settings;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\cloudflare_purge\CloudflarePurgeCredentials;
+use Drupal\Core\Site\Settings;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -57,7 +57,7 @@ class CloudflarePurgeController extends ControllerBase {
    */
   public function __construct(ConfigFactoryInterface $config_factory,
                               LoggerChannelInterface $logger,
-                              RequestStack           $request_stack) {
+                              RequestStack $request_stack) {
     $this->configFactory = $config_factory;
     $this->logger = $logger;
     $this->requestStack = $request_stack;
