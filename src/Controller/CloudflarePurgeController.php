@@ -36,14 +36,14 @@ class CloudflarePurgeController extends ControllerBase {
    *
    * @var \Drupal\Core\Logger\LoggerChannelInterface
    */
-  protected $logger;
+  protected LoggerChannelInterface $logger;
 
   /**
    * A request stack symfony instance.
    *
    * @var \Symfony\Component\HttpFoundation\RequestStack
    */
-  protected $requestStack;
+  protected RequestStack $requestStack;
 
   /**
    * Get the config and logger.
@@ -83,9 +83,8 @@ class CloudflarePurgeController extends ControllerBase {
     if ($request->server->get('HTTP_REFERER')) {
       return $request->server->get('HTTP_REFERER');
     }
-    else {
-      return base_path();
-    }
+
+    return base_path();
   }
 
   /**

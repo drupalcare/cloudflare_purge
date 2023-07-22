@@ -24,7 +24,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
    *
    * @var \Drupal\Core\Logger\LoggerChannelInterface
    */
-  protected $logger;
+  protected LoggerChannelInterface $logger;
 
   /**
    * Cloudflare purge constructor.
@@ -98,7 +98,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       $form['cloudflare_purge_form']['zone_id'] = [
         '#type' => 'item',
         '#title' => $this->t('Zone ID'),
-        '#markup' => $this->t('Zone ID is currently being overriden in <em>settings.php</em>.'),
+        '#markup' => $this->t('Zone ID is currently being overridden in <em>settings.php</em>.'),
       ];
     }
 
@@ -121,7 +121,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       $form['cloudflare_purge_form']['authorization'] = [
         '#type' => 'item',
         '#title' => $this->t('Authorization'),
-        '#markup' => $this->t('Authorization is currently being overriden in <em>settings.php</em>.'),
+        '#markup' => $this->t('Authorization is currently being overridden in <em>settings.php</em>.'),
       ];
     }
 
