@@ -44,8 +44,6 @@ class CloudflarePurgeCredentials {
       }
     }
     catch (RequestException $e) {
-      // watchdog_exception('cloudflare_purge', $e);
-      // https://www.drupal.org/node/2932520
       $logger = \Drupal::logger('cloudflare_purge');
       Error::logException($logger, $e);
     }
