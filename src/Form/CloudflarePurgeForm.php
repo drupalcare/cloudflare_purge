@@ -3,6 +3,7 @@
 namespace Drupal\cloudflare_purge\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
@@ -34,8 +35,8 @@ class CloudflarePurgeForm extends ConfigFormBase {
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, LoggerChannelInterface $logger) {
-    parent::__construct($config_factory);
+  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typed_config_manager, LoggerChannelInterface $logger) {
+    parent::__construct($config_factory, $typed_config_manager);
     $this->logger = $logger;
   }
 
@@ -45,7 +46,8 @@ class CloudflarePurgeForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('cloudflare_purge.logger.channel.cloudflare_purge')
+      $container->get('config.typed'),
+      $container->get('logger.factory')->get('cloudflare_purge')
     );
   }
 
