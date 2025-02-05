@@ -81,6 +81,29 @@ class CloudflarePurgeForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state):array {
     $config = $this->config(static::SETTINGS);
 
+    if (!$this->isOverridden('email')) {
+      $form['cloudflare_purge_form']['email'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Email'),
+        '#size' => 60,
+        '#required' => TRUE,
+        '#default_value' => $config->get('email'),
+        '#attributes' => [
+          'placeholder' => [
+            t('Email'),
+          ],
+        ],
+        '#description' => $this->t('Enter Cloudflare Email address.'),
+      ];
+    }
+    else {
+      $form['cloudflare_purge_form']['email'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Email'),
+        '#markup' => $this->t('Email is currently being overridden in <em>settings.php</em>.'),
+      ];
+    }
+
     if (!$this->isOverridden('zone_id')) {
       $form['cloudflare_purge_form']['zone_id'] = [
         '#type' => 'textfield',
@@ -107,7 +130,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     if (!$this->isOverridden('authorization')) {
       $form['cloudflare_purge_form']['authorization'] = [
         '#type' => 'textfield',
-        '#title' => t('Authorization'),
+        '#title' => t('Authorization (API Key)'),
         '#size' => 60,
         '#required' => TRUE,
         '#default_value' => $config->get('authorization'),
@@ -116,14 +139,14 @@ class CloudflarePurgeForm extends ConfigFormBase {
             $this->t('Authorization'),
           ],
         ],
-        '#description' => $this->t('Enter Cloudflare Authorization.'),
+        '#description' => $this->t('Enter Cloudflare Authorization (API key).'),
       ];
     }
     else {
       $form['cloudflare_purge_form']['authorization'] = [
         '#type' => 'item',
-        '#title' => $this->t('Authorization'),
-        '#markup' => $this->t('Authorization is currently being overridden in <em>settings.php</em>.'),
+        '#title' => $this->t('Authorization (API Key)'),
+        '#markup' => $this->t('Authorization (API Key) is currently being overridden in <em>settings.php</em>.'),
       ];
     }
 
@@ -139,6 +162,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     $this->config(self::SETTINGS)
       ->set('zone_id', $form_state->getValue('zone_id'))
       ->set('authorization', $form_state->getValue('authorization'))
+      ->set('email', $form_state->getValue('email'))
       ->save();
     parent::submitForm($form, $form_state);
 

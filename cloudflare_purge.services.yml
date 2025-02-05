@@ -3,3 +3,7 @@ services:
     class: Drupal\Core\Logger\LoggerChannelInterface
     parent: logger.channel_base
     arguments: ['cloudflare_purge']
+  cloudflare_purge.purge:
+    class: Drupal\cloudflare_purge\Purge
+    arguments: ['@config.factory', '@cloudflare_purge.logger.channel.cloudflare_purge', '@request_stack']
+

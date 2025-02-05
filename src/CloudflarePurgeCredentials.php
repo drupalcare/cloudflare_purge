@@ -17,26 +17,34 @@ class CloudflarePurgeCredentials {
    *   CF zone ID.
    * @param string $authorization
    *   CF authorization.
+   * @param string $email
+   *  CF email
+   * @param string $url
+   *   URL to purge
    *
    * @return int
    *   Return code status.
    *
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
-  public static function cfPurgeCache(string $zoneId, string $authorization) {
+  public static function cfPurgeCache(string $zoneId, string $authorization, string $email, string $url_to_purge) {
     $url = "https://api.cloudflare.com/client/v4/zones/{$zoneId}/purge_cache";
     $method = 'POST';
 
     try {
       $client = \Drupal::httpClient();
       $options = [
-        'json' => [
-          'purge_everything' => TRUE,
-        ],
         'headers' => [
-          'Authorization' => 'Bearer ' . $authorization,
+          'X-Auth-Email' => $email,
+          'X-Auth-Key' => $authorization,
         ],
       ];
+      if (empty($url_to_purge)) {
+        $options['json']['purge_everything'] = TRUE;
+      }
+      else {
+        $options['json']['files'] = [$url_to_purge];
+      }
       $response = $client->request($method, $url, $options);
       $code = $response->getStatusCode();
       if ($code == 200) {

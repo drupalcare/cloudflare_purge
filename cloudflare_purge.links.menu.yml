@@ -6,7 +6,11 @@ cloudflare_purge.form:
   title: 'Credentials form'
   route_name: cloudflare_purge.form
   parent: cloudflare_purge.admin
+cloudflare_purge_url.form:
+  title: 'Purge by URL'
+  route_name: cloudflare_purge_url.form
+  parent: cloudflare_purge.admin
 cloudflare_purge.cache:
-  title: 'Purge Cloudflare'
+  title: 'Purge Everything'
   route_name: cloudflare_purge.cache
   parent: cloudflare_purge.admin
