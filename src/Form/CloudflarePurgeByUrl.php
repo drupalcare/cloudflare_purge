@@ -20,6 +20,7 @@ class CloudflarePurgeByUrl extends FormBase {
 
   /**
    * Build the form.
+   *
    * @param array $form
    *   Form array.
    * @param \Drupal\Core\Form\FormStateInterface $form_state

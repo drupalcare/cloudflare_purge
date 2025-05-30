@@ -32,6 +32,8 @@ class CloudflarePurgeForm extends ConfigFormBase {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
+   * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config_manager
+   *   The typed configuration manager.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger.
    */
@@ -96,7 +98,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
         '#default_value' => $config->get('email'),
         '#attributes' => [
           'placeholder' => [
-            t('Email'),
+            $this->t('Email'),
           ],
         ],
         '#states' => [
@@ -127,7 +129,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
         '#default_value' => $config->get('zone_id'),
         '#attributes' => [
           'placeholder' => [
-            t('Zone ID'),
+            $this->t('Zone ID'),
           ],
         ],
         '#description' => $this->t('Enter Cloudflare Zone ID.'),
@@ -144,7 +146,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     if (!$this->isOverridden('authorization')) {
       $form['cloudflare_purge_form']['authorization'] = [
         '#type' => 'textfield',
-        '#title' => t('Authorization (API Key)'),
+        '#title' => $this->t('Authorization (API Key)'),
         '#size' => 60,
         '#required' => FALSE,
         '#default_value' => $config->get('authorization'),
@@ -175,7 +177,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     if (!$this->isOverridden('bearer_token')) {
       $form['cloudflare_purge_form']['bearer_token'] = [
         '#type' => 'textfield',
-        '#title' => t('Bearer token'),
+        '#title' => $this->t('Bearer token'),
         '#size' => 60,
         '#required' => FALSE,
         '#default_value' => $config->get('bearer_token'),

@@ -11,22 +11,23 @@ use GuzzleHttp\Exception\RequestException;
 class CloudflarePurgeCredentials {
 
   /**
-   * Function to get response.
-   * @param bool $use_bearer_token
-   *   Authorization type.
-   * @param string $bearer_token
-   *   CF bearer_token.
-   * @param string $zoneId
-   *   CF zone ID.
-   * @param string $authorization
-   *   CF authorization.
-   * @param string $email
-   *  CF email
-   * @param string $url
-   *   URL to purge
+   * Function to purge the Cloudflare cache.
    *
-   * @return int
-   *   Return code status.
+   * @param bool $use_bearer_token
+   *   Whether to use a bearer token for authentication.
+   * @param string $zoneId
+   *   The Cloudflare zone ID.
+   * @param string $bearer_token
+   *   The Cloudflare bearer token.
+   * @param string $authorization
+   *   The Cloudflare authorization key.
+   * @param string $email
+   *   The Cloudflare account email.
+   * @param string $url_to_purge
+   *   The specific URL to purge. Leave empty to purge everything.
+   *
+   * @return int|null
+   *   The response status code on success, or NULL on failure.
    *
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
@@ -37,7 +38,7 @@ class CloudflarePurgeCredentials {
     try {
       $client = \Drupal::httpClient();
 
-      if ($use_bearer_token ) {
+      if ($use_bearer_token) {
         $options = [
           'headers' => [
             "Authorization" => 'Bearer ' . $bearer_token,

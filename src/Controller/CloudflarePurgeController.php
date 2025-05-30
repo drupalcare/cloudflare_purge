@@ -20,8 +20,10 @@ class CloudflarePurgeController extends ControllerBase {
   protected RequestStack $requestStack;
 
   /**
+   * Constructs a CloudflarePurgeController object.
+   *
    * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
-   *   A request stack symfony instance.
+   *   A request stack Symfony instance.
    */
   public function __construct(RequestStack $request_stack) {
     $this->requestStack = $request_stack;
