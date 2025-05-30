@@ -36,21 +36,40 @@ class Purge {
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function purge(string $url = '') {
+    $use_bearer_token = $this->getCredentials('use_bearer_token');
     $zoneId = $this->getCredentials('zone_id');
-    $authorization = $this->getCredentials('authorization');
-    $email = $this->getCredentials('email');
-
-    if (!empty($zoneId) && !empty($authorization) && !empty($email)) {
-      $results = CloudflarePurgeCredentials::cfPurgeCache($zoneId, $authorization, $email, $url);
-      if ($results == 200) {
-        \Drupal::messenger()->addMessage(t('Purge successful.'));
+    if ($use_bearer_token == TRUE) {
+      $bearer_token = $this->getCredentials('bearer_token');
+  
+      if (!empty($zoneId) && !empty($bearer_token)) {
+        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, $bearer_token, $authorization = NULL, $email = NULL, $url);
+        if ($results == 200) {
+          \Drupal::messenger()->addMessage(t('Purge successful.'));
+        }
+        else {
+          \Drupal::messenger()->addError(t('An error occurred, check drupal log for more info.'));
+        }
       }
       else {
-        \Drupal::messenger()->addError(t('An error occurred, check drupal log for more info.'));
+        \Drupal::messenger()->addError(t('Please insert Cloudflare credentials.'));
       }
     }
     else {
-      \Drupal::messenger()->addError(t('Please insert Cloudflare credentials.'));
+      $authorization = $this->getCredentials('authorization');
+      $email = $this->getCredentials('email');
+  
+      if (!empty($zoneId) && !empty($authorization) && !empty($email)) {
+        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, $authorization, $email, $url);
+        if ($results == 200) {
+          \Drupal::messenger()->addMessage(t('Purge successful.'));
+        }
+        else {
+          \Drupal::messenger()->addError(t('An error occurred, check drupal log for more info.'));
+        }
+      }
+      else {
+        \Drupal::messenger()->addError(t('Please insert Cloudflare credentials.'));
+      }
     }
 
   }

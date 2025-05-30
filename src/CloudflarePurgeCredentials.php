@@ -12,7 +12,10 @@ class CloudflarePurgeCredentials {
 
   /**
    * Function to get response.
-   *
+   * @param bool $use_bearer_token
+   *   Authorization type.
+   * @param string $bearer_token
+   *   CF bearer_token.
    * @param string $zoneId
    *   CF zone ID.
    * @param string $authorization
@@ -27,18 +30,28 @@ class CloudflarePurgeCredentials {
    *
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
-  public static function cfPurgeCache(string $zoneId, string $authorization, string $email, string $url_to_purge) {
+  public static function cfPurgeCache(bool $use_bearer_token, string $zoneId, string $bearer_token, $authorization, $email, string $url_to_purge) {
     $url = "https://api.cloudflare.com/client/v4/zones/{$zoneId}/purge_cache";
     $method = 'POST';
 
     try {
       $client = \Drupal::httpClient();
-      $options = [
-        'headers' => [
-          'X-Auth-Email' => $email,
-          'X-Auth-Key' => $authorization,
-        ],
-      ];
+
+      if ($use_bearer_token ) {
+        $options = [
+          'headers' => [
+            "Authorization" => 'Bearer ' . $bearer_token,
+          ],
+        ];
+      }
+      else {
+        $options = [
+          'headers' => [
+            'X-Auth-Email' => $email,
+            'X-Auth-Key' => $authorization,
+          ],
+        ];
+      }
       if (empty($url_to_purge)) {
         $options['json']['purge_everything'] = TRUE;
       }
