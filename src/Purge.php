@@ -5,12 +5,15 @@ namespace Drupal\cloudflare_purge;
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a service to purge Cloudflare cache.
  */
 class Purge {
+
+  use StringTranslationTrait;
 
   /**
    * Get config.
@@ -44,7 +47,7 @@ class Purge {
       $bearer_token = $this->getCredentials('bearer_token');
 
       if (!empty($zoneId) && !empty($bearer_token)) {
-        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, $bearer_token, $authorization = NULL, $email = NULL, $url);
+        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, $bearer_token, NULL, NULL, $url);
         if ($results == 200) {
           \Drupal::messenger()->addMessage($this->t('Purge successful.'));
         }
@@ -61,7 +64,7 @@ class Purge {
       $email = $this->getCredentials('email');
 
       if (!empty($zoneId) && !empty($authorization) && !empty($email)) {
-        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, $authorization, $email, $url);
+        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, '', $authorization, $email, $url);
         if ($results == 200) {
           \Drupal::messenger()->addMessage($this->t('Purge successful.'));
         }
