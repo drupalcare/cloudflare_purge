@@ -41,9 +41,14 @@ class Purge {
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function purge(string $url = '') {
-    $use_bearer_token = $this->getCredentials('use_bearer_token');
+    if (!empty($this->getCredentials('use_bearer_token'))) {
+      $use_bearer_token = $this->getCredentials('use_bearer_token');
+    }
+    else {
+      $use_bearer_token = FALSE;
+    }
     $zoneId = $this->getCredentials('zone_id');
-    if ($use_bearer_token == TRUE) {
+    if ($use_bearer_token) {
       $bearer_token = $this->getCredentials('bearer_token');
 
       if (!empty($zoneId) && !empty($bearer_token)) {
@@ -91,7 +96,16 @@ class Purge {
   protected function getCredentials(string $name) {
     $cloudflare_settings = Settings::get('cloudflare_purge_credentials');
     $cloudflare_config = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
-    return $cloudflare_config->get($name) ?? $cloudflare_settings[$name];
+
+    if (!empty($cloudflare_config->get($name))) {
+      return $cloudflare_config->get($name);
+    }
+    elseif (!empty($cloudflare_settings[$name])) {
+      return $cloudflare_settings[$name];
+    }
+    else {
+      return NULL;
+    }
   }
 
 }
