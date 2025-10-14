@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Cloudflare Purge.
+ * Cloudflare Purge installation and update functions.
  *
  * Filename:     cloudflare_purge.install
  * Website:      https://www.flashwebcenter.com
@@ -10,12 +10,14 @@
  * Developer:    Alaa Haddad https://www.alaahaddad.com.
  */
 
+declare(strict_types=1);
+
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 
 /**
  * Implements hook_uninstall().
  */
-function cloudflare_purge_uninstall($is_syncing) {
+function cloudflare_purge_uninstall(bool $is_syncing): void {
   if ($is_syncing) {
     return;
   }

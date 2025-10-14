@@ -1,12 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\cloudflare_purge;
 
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Logger\LoggerChannelInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a service to purge Cloudflare cache.
@@ -16,52 +19,58 @@ class Purge {
   use StringTranslationTrait;
 
   /**
-   * Get config.
+   * Constructs a Purge service object.
    *
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   The config factory.
+   * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
+   *   The logger channel.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger service.
+   * @param \Drupal\cloudflare_purge\CloudflarePurgeApi $cloudflarePurgeApi
+   *   The Cloudflare Purge API service.
    */
-  protected $configFactory;
-
-  public function __construct(ConfigFactoryInterface $config_factory) {
-    $this->configFactory = $config_factory;
-  }
+  public function __construct(
+    protected ConfigFactoryInterface $configFactory,
+    protected LoggerChannelInterface $logger,
+    protected MessengerInterface $messenger,
+    protected CloudflarePurgeApi $cloudflarePurgeApi,
+  ) {}
 
   /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('config.factory'),
-    );
-  }
-
-  /**
-   * Purge cloudflare cache.
+   * Purges Cloudflare cache.
+   *
+   * @param string $url
+   *   The specific URL to purge. Leave empty to purge everything.
    *
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
-  public function purge(string $url = '') {
-    if (!empty($this->getCredentials('use_bearer_token'))) {
-      $use_bearer_token = $this->getCredentials('use_bearer_token');
-    }
-    else {
-      $use_bearer_token = FALSE;
-    }
+  public function purge(string $url = ''): void {
+    $useBearerToken = (bool) $this->getCredentials('use_bearer_token');
     $zoneId = $this->getCredentials('zone_id');
-    if ($use_bearer_token) {
-      $bearer_token = $this->getCredentials('bearer_token');
 
-      if (!empty($zoneId) && !empty($bearer_token)) {
-        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, $bearer_token, NULL, NULL, $url);
+    if ($useBearerToken) {
+      $bearerToken = $this->getCredentials('bearer_token');
+
+      if (!empty($zoneId) && !empty($bearerToken)) {
+        $results = $this->cloudflarePurgeApi->cfPurgeCache(
+          $useBearerToken,
+          $zoneId,
+          $bearerToken,
+          NULL,
+          NULL,
+          $url
+        );
+
         if ($results == 200) {
-          \Drupal::messenger()->addMessage($this->t('Purge successful.'));
+          $this->messenger->addMessage($this->t('Purge successful.'));
         }
         else {
-          \Drupal::messenger()->addError($this->t('An error occurred, check drupal log for more info.'));
+          $this->messenger->addError($this->t('An error occurred, check drupal log for more info.'));
         }
       }
       else {
-        \Drupal::messenger()->addError($this->t('Please insert Cloudflare credentials.'));
+        $this->messenger->addError($this->t('Please insert Cloudflare credentials.'));
       }
     }
     else {
@@ -69,19 +78,26 @@ class Purge {
       $email = $this->getCredentials('email');
 
       if (!empty($zoneId) && !empty($authorization) && !empty($email)) {
-        $results = CloudflarePurgeCredentials::cfPurgeCache($use_bearer_token, $zoneId, '', $authorization, $email, $url);
+        $results = $this->cloudflarePurgeApi->cfPurgeCache(
+          $useBearerToken,
+          $zoneId,
+          '',
+          $authorization,
+          $email,
+          $url
+        );
+
         if ($results == 200) {
-          \Drupal::messenger()->addMessage($this->t('Purge successful.'));
+          $this->messenger->addMessage($this->t('Purge successful.'));
         }
         else {
-          \Drupal::messenger()->addError($this->t('An error occurred, check drupal log for more info.'));
+          $this->messenger->addError($this->t('An error occurred, check drupal log for more info.'));
         }
       }
       else {
-        \Drupal::messenger()->addError($this->t('Please insert Cloudflare credentials.'));
+        $this->messenger->addError($this->t('Please insert Cloudflare credentials.'));
       }
     }
-
   }
 
   /**
@@ -90,22 +106,21 @@ class Purge {
    * @param string $name
    *   The credential key name to retrieve.
    *
-   * @return mixed
+   * @return string|null
    *   The credential value or NULL if not found.
    */
-  protected function getCredentials(string $name) {
-    $cloudflare_settings = Settings::get('cloudflare_purge_credentials');
-    $cloudflare_config = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
+  protected function getCredentials(string $name): ?string {
+    $cloudflareSettings = Settings::get('cloudflare_purge_credentials');
+    $cloudflareConfig = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
 
-    if (!empty($cloudflare_config->get($name))) {
-      return $cloudflare_config->get($name);
+    if (!empty($cloudflareConfig->get($name))) {
+      return $cloudflareConfig->get($name);
     }
-    elseif (!empty($cloudflare_settings[$name])) {
-      return $cloudflare_settings[$name];
+    elseif (!empty($cloudflareSettings[$name])) {
+      return $cloudflareSettings[$name];
     }
-    else {
-      return NULL;
-    }
+
+    return NULL;
   }
 
 }

@@ -1,6 +1,9 @@
 name: 'Cloudflare Purge'
 type: module
-description: 'Allow customers to purge cached resources from Cloudflare.'
-package: CDN
-core_version_requirement: ^10.1 || ^11
+description: 'Purge cached resources from Cloudflare via API. Supports both Bearer Token and API Key authentication.'
+package: Performance
+core_version_requirement: ^10.2 || ^11
 configure: cloudflare_purge.form
+
+dependencies:
+  - drupal:system

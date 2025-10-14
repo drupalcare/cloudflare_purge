@@ -2,28 +2,39 @@
 
 /**
  * @file
- * Cloudflare Purge.
+ * Cloudflare Purge module file.
  *
  * Filename:     cloudflare_purge.module
  * Website:      https://www.flashwebcenter.com
- * Description:  template.
+ * Description:  Provides Cloudflare cache purging functionality.
  * Developer:    Alaa Haddad https://www.alaahaddad.com.
  */
+
+declare(strict_types=1);
 
 use Drupal\Core\Routing\RouteMatchInterface;
 
 /**
  * Implements hook_help().
  */
-function cloudflare_purge_help($route_name, RouteMatchInterface $route_match) {
-
+function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_match): ?string {
   switch ($route_name) {
     case 'help.page.cloudflare_purge':
+      $readme_file = __DIR__ . '/README.md';
 
-      $text = file_get_contents(__DIR__ . "/README.md");
+      if (!file_exists($readme_file)) {
+        return NULL;
+      }
 
+      $text = file_get_contents($readme_file);
+
+      if ($text === FALSE) {
+        return NULL;
+      }
+
+      // If Markdown module is not installed, return plain text in a pre tag.
       if (!\Drupal::moduleHandler()->moduleExists('markdown')) {
-        return '<pre>' . $text . '</pre>';
+        return '<pre>' . htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</pre>';
       }
 
       // Use the Markdown filter to render the README.
@@ -32,7 +43,9 @@ function cloudflare_purge_help($route_name, RouteMatchInterface $route_match) {
         ->get('markdown.settings')
         ->getRawData();
       $config = ['settings' => $settings];
-      return $filter_manager->createInstance('markdown', $config)->process($text, 'en');
+      $filter = $filter_manager->createInstance('markdown', $config);
+
+      return $filter->process($text, 'en')->getProcessedText();
   }
 
   return NULL;

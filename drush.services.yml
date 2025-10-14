@@ -1,0 +1,7 @@
+services:
+  cloudflare_purge.commands:
+    class: Drupal\cloudflare_purge\Commands\CloudflarePurgeCommands
+    arguments:
+      - '@cloudflare_purge.purge'
+    tags:
+      - { name: drush.command }

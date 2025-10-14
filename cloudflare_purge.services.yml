@@ -1,8 +1,18 @@
 services:
-  cloudflare_purge.logger.channel.cloudflare_purge:
-    class: Drupal\Core\Logger\LoggerChannelInterface
+  logger.channel.cloudflare_purge:
     parent: logger.channel_base
     arguments: ['cloudflare_purge']
+
+  cloudflare_purge.api:
+    class: Drupal\cloudflare_purge\CloudflarePurgeApi
+    arguments:
+      - '@http_client'
+      - '@logger.channel.cloudflare_purge'
+
   cloudflare_purge.purge:
     class: Drupal\cloudflare_purge\Purge
-    arguments: ['@config.factory', '@cloudflare_purge.logger.channel.cloudflare_purge', '@request_stack']
+    arguments:
+      - '@config.factory'
+      - '@logger.channel.cloudflare_purge'
+      - '@messenger'
+      - '@cloudflare_purge.api'

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\cloudflare_purge\Form;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -14,18 +16,13 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * Default ConfigFormBase for the cloudflare_purge module.
  */
 class CloudflarePurgeForm extends ConfigFormBase {
+
   /**
-   * Config settings.
+   * Config settings name.
    *
    * @var string
    */
   public const SETTINGS = 'cloudflare_purge.settings';
-  /**
-   * Log activity when user enter credentials.
-   *
-   * @var \Drupal\Core\Logger\LoggerChannelInterface
-   */
-  protected LoggerChannelInterface $logger;
 
   /**
    * Cloudflare purge constructor.
@@ -35,21 +32,24 @@ class CloudflarePurgeForm extends ConfigFormBase {
    * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config_manager
    *   The typed configuration manager.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
-   *   The logger.
+   *   The logger channel.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typed_config_manager, LoggerChannelInterface $logger) {
+  public function __construct(
+    ConfigFactoryInterface $config_factory,
+    TypedConfigManagerInterface $typed_config_manager,
+    protected LoggerChannelInterface $logger,
+  ) {
     parent::__construct($config_factory, $typed_config_manager);
-    $this->logger = $logger;
   }
 
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('config.factory'),
       $container->get('config.typed'),
-      $container->get('logger.factory')->get('cloudflare_purge')
+      $container->get('logger.channel.cloudflare_purge'),
     );
   }
 
@@ -65,22 +65,14 @@ class CloudflarePurgeForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormId():string {
+  public function getFormId(): string {
     return 'cloudflare_purge_form';
   }
 
   /**
-   * Build the form.
-   *
-   * @param array $form
-   *   Form array.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   Form State interface.
-   *
-   * @return array
-   *   Return array.
+   * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state):array {
+  public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config(static::SETTINGS);
 
     $form['use_bearer_token'] = [
@@ -206,43 +198,43 @@ class CloudflarePurgeForm extends ConfigFormBase {
     }
 
     return parent::buildForm($form, $form_state);
-
   }
 
   /**
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    // Save all configs on submit.
+    $config = $this->config(self::SETTINGS);
+
     if ($form_state->getValue('use_bearer_token') == TRUE) {
-      $this->config(self::SETTINGS)
+      $config
         ->set('zone_id', $form_state->getValue('zone_id'))
         ->set('bearer_token', $form_state->getValue('bearer_token'))
         ->set('use_bearer_token', $form_state->getValue('use_bearer_token'))
         ->save();
     }
     else {
-      $this->config(self::SETTINGS)
+      $config
         ->set('zone_id', $form_state->getValue('zone_id'))
         ->set('authorization', $form_state->getValue('authorization'))
         ->set('email', $form_state->getValue('email'))
         ->set('use_bearer_token', $form_state->getValue('use_bearer_token'))
         ->save();
     }
-    parent::submitForm($form, $form_state);
 
+    parent::submitForm($form, $form_state);
   }
 
   /**
-   * Check if config variable is overridden by the settings.php.
+   * Checks if config variable is overridden by settings.php.
    *
    * @param string $name
-   *   Check for the field value.
+   *   The field name to check.
    *
-   * @return mixed
-   *   Return the value
+   * @return string|bool
+   *   The overridden value or FALSE if not overridden.
    */
-  protected function isOverridden(string $name) {
+  protected function isOverridden(string $name): string|bool {
     $cloudflareCredentials = Settings::get('cloudflare_purge_credentials');
     if (!empty($cloudflareCredentials[$name])) {
       return $cloudflareCredentials[$name];

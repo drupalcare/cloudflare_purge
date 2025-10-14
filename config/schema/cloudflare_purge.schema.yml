@@ -1,0 +1,19 @@
+cloudflare_purge.settings:
+  type: config_object
+  label: 'Cloudflare Purge settings'
+  mapping:
+    use_bearer_token:
+      type: boolean
+      label: 'Use Bearer Token'
+    zone_id:
+      type: string
+      label: 'Zone ID'
+    email:
+      type: string
+      label: 'Email'
+    authorization:
+      type: string
+      label: 'Authorization (API Key)'
+    bearer_token:
+      type: string
+      label: 'Bearer Token'
