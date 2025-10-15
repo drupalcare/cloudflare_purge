@@ -43,14 +43,16 @@ class Purge {
    * @param string $url
    *   The specific URL to purge. Leave empty to purge everything.
    *
+   * @return void
+   *
    * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function purge(string $url = ''): void {
-    $useBearerToken = (bool) $this->getCredentials('use_bearer_token');
-    $zoneId = $this->getCredentials('zone_id');
+    $useBearerToken = (bool) $this->getCredential('use_bearer_token');
+    $zoneId = $this->getCredential('zone_id');
 
     if ($useBearerToken) {
-      $bearerToken = $this->getCredentials('bearer_token');
+      $bearerToken = $this->getCredential('bearer_token');
 
       if (!empty($zoneId) && !empty($bearerToken)) {
         $results = $this->cloudflarePurgeApi->cfPurgeCache(
@@ -74,8 +76,8 @@ class Purge {
       }
     }
     else {
-      $authorization = $this->getCredentials('authorization');
-      $email = $this->getCredentials('email');
+      $authorization = $this->getCredential('authorization');
+      $email = $this->getCredential('email');
 
       if (!empty($zoneId) && !empty($authorization) && !empty($email)) {
         $results = $this->cloudflarePurgeApi->cfPurgeCache(
@@ -106,17 +108,21 @@ class Purge {
    * @param string $name
    *   The credential key name to retrieve.
    *
-   * @return string|null
+   * @return mixed
    *   The credential value or NULL if not found.
    */
-  protected function getCredentials(string $name): ?string {
+  protected function getCredential(string $name): mixed {
     $cloudflareSettings = Settings::get('cloudflare_purge_credentials');
     $cloudflareConfig = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
 
-    if (!empty($cloudflareConfig->get($name))) {
-      return $cloudflareConfig->get($name);
+    // Check config first.
+    $configValue = $cloudflareConfig->get($name);
+    if ($configValue !== NULL) {
+      return $configValue;
     }
-    elseif (!empty($cloudflareSettings[$name])) {
+
+    // Fallback to settings.php.
+    if (!empty($cloudflareSettings[$name])) {
       return $cloudflareSettings[$name];
     }
 
