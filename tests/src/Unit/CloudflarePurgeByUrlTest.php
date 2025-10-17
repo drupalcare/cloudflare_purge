@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
 use Drupal\cloudflare_purge\Form\CloudflarePurgeByUrl;
+use Drupal\cloudflare_purge\Purge;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\Tests\UnitTestCase;
 
 /**
@@ -97,23 +97,20 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
   }
 
   /**
-   * Creates form instance with mocked translation service.
+   * Creates form instance with mocked dependencies.
    *
    * @return \Drupal\cloudflare_purge\Form\CloudflarePurgeByUrl
    *   The form instance.
    */
   protected function createFormWithTranslation(): CloudflarePurgeByUrl {
-    $form = new CloudflarePurgeByUrl();
+    // Mock the Purge service (required constructor argument).
+    $purgeService = $this->createMock(Purge::class);
 
-    // Mock translation service.
-    $translation = $this->createMock(TranslationInterface::class);
-    $translation->expects($this->any())
-      ->method('translateString')
-      ->willReturnCallback(function ($string) {
-        return $string;
-      });
+    // Create form with mocked dependency.
+    $form = new CloudflarePurgeByUrl($purgeService);
 
-    $form->setStringTranslation($translation);
+    // Set up string translation.
+    $form->setStringTranslation($this->getStringTranslationStub());
 
     return $form;
   }
