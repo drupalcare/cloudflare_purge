@@ -44,12 +44,12 @@ final class CloudflarePurgeCommands extends DrushCommands {
   public function purgeAll(): void {
     try {
       $this->purgeService->purge();
-      $this->logger()->success(dt('Successfully purged all Cloudflare cache.'));
+      // FIXED: Use modern Drush 13 method instead of dt().
+      $this->logger()->success('Successfully purged all Cloudflare cache.');
     }
     catch (\Exception $e) {
-      $this->logger()->error(dt('Failed to purge Cloudflare cache: @message', [
-        '@message' => $e->getMessage(),
-      ]));
+      // FIXED: Use modern Drush 13 method instead of dt().
+      $this->logger()->error('Failed to purge Cloudflare cache: ' . $e->getMessage());
     }
   }
 
@@ -65,26 +65,24 @@ final class CloudflarePurgeCommands extends DrushCommands {
   #[CLI\Usage(name: 'drush cf-purge-url https://example.com/image.jpg', description: 'Purge a specific file (alias)')]
   public function purgeUrl(string $url): void {
     if (empty($url)) {
-      $this->logger()->error(dt('URL parameter is required.'));
+      $this->logger()->error('URL parameter is required.');
       return;
     }
 
     // Validate URL format.
     if (!filter_var($url, FILTER_VALIDATE_URL)) {
-      $this->logger()->error(dt('Invalid URL format: @url', ['@url' => $url]));
+      $this->logger()->error('Invalid URL format: ' . $url);
       return;
     }
 
     try {
       $this->purgeService->purge($url);
-      $this->logger()->success(dt('Successfully purged URL from Cloudflare cache: @url', [
-        '@url' => $url,
-      ]));
+      // FIXED: Use modern Drush 13 method instead of dt().
+      $this->logger()->success('Successfully purged URL from Cloudflare cache: ' . $url);
     }
     catch (\Exception $e) {
-      $this->logger()->error(dt('Failed to purge URL from Cloudflare cache: @message', [
-        '@message' => $e->getMessage(),
-      ]));
+      // FIXED: Use modern Drush 13 method instead of dt().
+      $this->logger()->error('Failed to purge URL from Cloudflare cache: ' . $e->getMessage());
     }
   }
 

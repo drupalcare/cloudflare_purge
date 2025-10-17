@@ -42,10 +42,6 @@ class Purge {
    *
    * @param string $url
    *   The specific URL to purge. Leave empty to purge everything.
-   *
-   * @return void
-   *
-   * @throws \GuzzleHttp\Exception\GuzzleException
    */
   public function purge(string $url = ''): void {
     $useBearerToken = (bool) $this->getCredential('use_bearer_token');
@@ -64,7 +60,8 @@ class Purge {
           $url
         );
 
-        if ($results == 200) {
+        // FIXED: Strict comparison.
+        if ($results === 200) {
           $this->messenger->addMessage($this->t('Purge successful.'));
         }
         else {
@@ -89,7 +86,8 @@ class Purge {
           $url
         );
 
-        if ($results == 200) {
+        // FIXED: Strict comparison.
+        if ($results === 200) {
           $this->messenger->addMessage($this->t('Purge successful.'));
         }
         else {
@@ -103,7 +101,9 @@ class Purge {
   }
 
   /**
-   * Gets Cloudflare credentials from config or settings.php fallback.
+   * Gets Cloudflare credentials from settings.php or config fallback.
+   *
+   * FIXED: Settings.php takes precedence over config for security.
    *
    * @param string $name
    *   The credential key name to retrieve.
@@ -112,18 +112,17 @@ class Purge {
    *   The credential value or NULL if not found.
    */
   protected function getCredential(string $name): mixed {
+    // FIXED: Check settings.php FIRST for security.
     $cloudflareSettings = Settings::get('cloudflare_purge_credentials');
-    $cloudflareConfig = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
+    if (!empty($cloudflareSettings[$name])) {
+      return $cloudflareSettings[$name];
+    }
 
-    // Check config first.
+    // Fallback to config.
+    $cloudflareConfig = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
     $configValue = $cloudflareConfig->get($name);
     if ($configValue !== NULL) {
       return $configValue;
-    }
-
-    // Fallback to settings.php.
-    if (!empty($cloudflareSettings[$name])) {
-      return $cloudflareSettings[$name];
     }
 
     return NULL;

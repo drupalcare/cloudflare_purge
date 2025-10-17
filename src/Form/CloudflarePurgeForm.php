@@ -18,11 +18,18 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class CloudflarePurgeForm extends ConfigFormBase {
 
   /**
-   * Config settings name.
+   * Config settings.
    *
    * @var string
    */
   public const SETTINGS = 'cloudflare_purge.settings';
+
+  /**
+   * Log activity when user enter credentials.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelInterface
+   */
+  protected LoggerChannelInterface $logger;
 
   /**
    * Cloudflare purge constructor.
@@ -32,14 +39,11 @@ class CloudflarePurgeForm extends ConfigFormBase {
    * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config_manager
    *   The typed configuration manager.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
-   *   The logger channel.
+   *   The logger.
    */
-  public function __construct(
-    ConfigFactoryInterface $config_factory,
-    TypedConfigManagerInterface $typed_config_manager,
-    protected LoggerChannelInterface $logger,
-  ) {
+  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typed_config_manager, LoggerChannelInterface $logger) {
     parent::__construct($config_factory, $typed_config_manager);
+    $this->logger = $logger;
   }
 
   /**
@@ -49,7 +53,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     return new static(
       $container->get('config.factory'),
       $container->get('config.typed'),
-      $container->get('logger.channel.cloudflare_purge'),
+      $container->get('logger.factory')->get('cloudflare_purge')
     );
   }
 
@@ -75,14 +79,16 @@ class CloudflarePurgeForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config(static::SETTINGS);
 
+    // use_bearer_token is ALWAYS editable (v3 behavior).
     $form['use_bearer_token'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Use Bearer Token'),
       '#default_value' => $config->get('use_bearer_token'),
     ];
 
+    // FIXED: Removed nested arrays throughout.
     if (!$this->isOverridden('email')) {
-      $form['cloudflare_purge_form']['email'] = [
+      $form['email'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Email'),
         '#size' => 60,
@@ -105,7 +111,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       ];
     }
     else {
-      $form['cloudflare_purge_form']['email'] = [
+      $form['email'] = [
         '#type' => 'item',
         '#title' => $this->t('Email'),
         '#markup' => $this->t('Email is currently being overridden in <em>settings.php</em>.'),
@@ -113,7 +119,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     }
 
     if (!$this->isOverridden('zone_id')) {
-      $form['cloudflare_purge_form']['zone_id'] = [
+      $form['zone_id'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Zone ID'),
         '#size' => 60,
@@ -128,7 +134,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       ];
     }
     else {
-      $form['cloudflare_purge_form']['zone_id'] = [
+      $form['zone_id'] = [
         '#type' => 'item',
         '#title' => $this->t('Zone ID'),
         '#markup' => $this->t('Zone ID is currently being overridden in <em>settings.php</em>.'),
@@ -136,7 +142,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     }
 
     if (!$this->isOverridden('authorization')) {
-      $form['cloudflare_purge_form']['authorization'] = [
+      $form['authorization'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Authorization (API Key)'),
         '#size' => 60,
@@ -159,7 +165,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       ];
     }
     else {
-      $form['cloudflare_purge_form']['authorization'] = [
+      $form['authorization'] = [
         '#type' => 'item',
         '#title' => $this->t('Authorization (API Key)'),
         '#markup' => $this->t('Authorization (API Key) is currently being overridden in <em>settings.php</em>.'),
@@ -167,7 +173,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
     }
 
     if (!$this->isOverridden('bearer_token')) {
-      $form['cloudflare_purge_form']['bearer_token'] = [
+      $form['bearer_token'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Bearer token'),
         '#size' => 60,
@@ -190,7 +196,7 @@ class CloudflarePurgeForm extends ConfigFormBase {
       ];
     }
     else {
-      $form['cloudflare_purge_form']['bearer_token'] = [
+      $form['bearer_token'] = [
         '#type' => 'item',
         '#title' => $this->t('Bearer token'),
         '#markup' => $this->t('Bearer token is currently being overridden in <em>settings.php</em>.'),
@@ -206,40 +212,48 @@ class CloudflarePurgeForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $config = $this->config(self::SETTINGS);
 
-    if ($form_state->getValue('use_bearer_token') == TRUE) {
-      $config
-        ->set('zone_id', $form_state->getValue('zone_id'))
-        ->set('bearer_token', $form_state->getValue('bearer_token'))
-        ->set('use_bearer_token', $form_state->getValue('use_bearer_token'))
-        ->save();
+    // Always save use_bearer_token (not overrideable).
+    $config->set('use_bearer_token', $form_state->getValue('use_bearer_token'));
+
+    // FIXED: Only save non-overridden fields.
+    if ($form_state->getValue('use_bearer_token') === TRUE) {
+      // Bearer token mode.
+      if (!$this->isOverridden('zone_id')) {
+        $config->set('zone_id', $form_state->getValue('zone_id'));
+      }
+      if (!$this->isOverridden('bearer_token')) {
+        $config->set('bearer_token', $form_state->getValue('bearer_token'));
+      }
     }
     else {
-      $config
-        ->set('zone_id', $form_state->getValue('zone_id'))
-        ->set('authorization', $form_state->getValue('authorization'))
-        ->set('email', $form_state->getValue('email'))
-        ->set('use_bearer_token', $form_state->getValue('use_bearer_token'))
-        ->save();
+      // API key mode.
+      if (!$this->isOverridden('zone_id')) {
+        $config->set('zone_id', $form_state->getValue('zone_id'));
+      }
+      if (!$this->isOverridden('authorization')) {
+        $config->set('authorization', $form_state->getValue('authorization'));
+      }
+      if (!$this->isOverridden('email')) {
+        $config->set('email', $form_state->getValue('email'));
+      }
     }
 
+    $config->save();
     parent::submitForm($form, $form_state);
   }
 
   /**
-   * Checks if config variable is overridden by settings.php.
+   * Check if config variable is overridden by the settings.php.
    *
    * @param string $name
-   *   The field name to check.
+   *   Check for the field value.
    *
-   * @return string|bool
-   *   The overridden value or FALSE if not overridden.
+   * @return bool
+   *   TRUE if overridden, FALSE otherwise.
    */
-  protected function isOverridden(string $name): string|bool {
+  protected function isOverridden(string $name): bool {
     $cloudflareCredentials = Settings::get('cloudflare_purge_credentials');
-    if (!empty($cloudflareCredentials[$name])) {
-      return $cloudflareCredentials[$name];
-    }
-    return FALSE;
+    return !empty($cloudflareCredentials[$name]);
   }
 
 }

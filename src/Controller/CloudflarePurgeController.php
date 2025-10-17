@@ -6,6 +6,7 @@ namespace Drupal\cloudflare_purge\Controller;
 
 use Drupal\cloudflare_purge\Purge;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Logger\LoggerChannelInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -22,10 +23,13 @@ class CloudflarePurgeController extends ControllerBase {
    *   A request stack Symfony instance.
    * @param \Drupal\cloudflare_purge\Purge $purgeService
    *   The Cloudflare purge service.
+   * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
+   *   The logger channel.
    */
   public function __construct(
     protected RequestStack $requestStack,
     protected Purge $purgeService,
+    protected LoggerChannelInterface $logger,
   ) {}
 
   /**
@@ -35,16 +39,17 @@ class CloudflarePurgeController extends ControllerBase {
     return new static(
       $container->get('request_stack'),
       $container->get('cloudflare_purge.purge'),
+      $container->get('logger.channel.cloudflare_purge')
     );
   }
 
   /**
-   * Gets the current URL from the referer.
+   * Stay on the same page.
    *
    * @return string
-   *   The referer URL or base path.
+   *   The current URL.
    */
-  protected function getCurrentUrl(): string {
+  public function getCurrentUrl(): string {
     $request = $this->requestStack->getCurrentRequest();
     if ($request->server->get('HTTP_REFERER')) {
       return $request->server->get('HTTP_REFERER');
@@ -53,13 +58,24 @@ class CloudflarePurgeController extends ControllerBase {
   }
 
   /**
-   * Purges Cloudflare cache.
+   * Purge cloudflare cache.
    *
    * @return \Symfony\Component\HttpFoundation\RedirectResponse
    *   Redirect back to the previous url.
    */
   public function purgeAll(): RedirectResponse {
-    $this->purgeService->purge();
+    try {
+      $this->purgeService->purge();
+    }
+    catch (\Exception $e) {
+      $this->messenger()->addError($this->t('Failed to purge cache: @message', [
+        '@message' => $e->getMessage(),
+      ]));
+      $this->logger->error('Exception during cache purge: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+    }
+
     return new RedirectResponse($this->getCurrentUrl());
   }
 

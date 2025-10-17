@@ -45,18 +45,17 @@ class CloudflarePurgeByUrl extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $form['cloudflare_purge_url']['url'] = [
+    $form['url'] = [
       '#type' => 'textfield',
       '#title' => $this->t('URL'),
       '#size' => 60,
       '#required' => TRUE,
-      '#description' => $this->t('<p>Enter the URL or directory you want to purge. Valid requests include:
-      <ul><li>http://www.example.com</li><li>http://www.example.com/foo</li><li>http://www.example.com/bar.jpg</li></ul></p>'),
+      '#description' => $this->t('Enter the URL or directory you want to purge. Valid examples: https://example.com, https://example.com/page, https://example.com/image.jpg'),
     ];
 
     $form['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Submit'),
+      '#value' => $this->t('Purge URL'),
     ];
 
     return $form;
@@ -66,8 +65,9 @@ class CloudflarePurgeByUrl extends FormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    if ($form_state->getValue('url') && !UrlHelper::isValid($form_state->getValue('url'), TRUE)) {
-      $form_state->setErrorByName('url', $this->t('The URL entered is not valid.'));
+    $url = $form_state->getValue('url');
+    if ($url && !UrlHelper::isValid($url, TRUE)) {
+      $form_state->setErrorByName('url', $this->t('The URL entered is not valid. Please enter a fully qualified URL (e.g., https://example.com).'));
     }
   }
 
@@ -75,7 +75,14 @@ class CloudflarePurgeByUrl extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $this->purgeService->purge($form_state->getValue('url'));
+    try {
+      $this->purgeService->purge($form_state->getValue('url'));
+    }
+    catch (\Exception $e) {
+      $this->messenger()->addError($this->t('Failed to purge URL: @message', [
+        '@message' => $e->getMessage(),
+      ]));
+    }
   }
 
 }

@@ -86,12 +86,34 @@ class CloudflarePurgeApi {
       $response = $this->httpClient->request($method, $url, $options);
       $code = $response->getStatusCode();
 
-      if ($code == 200) {
+      // FIXED: Use strict comparison.
+      if ($code === 200) {
+        $this->logger->info('Cloudflare cache purged successfully. URL: @url', [
+          '@url' => $urlToPurge ?: 'ALL',
+        ]);
         return $code;
       }
+
+      // FIXED: Log non-200 responses that didn't throw exceptions.
+      $this->logger->warning('Unexpected response from Cloudflare API. Status code: @code', [
+        '@code' => $code,
+      ]);
+      return $code;
     }
     catch (RequestException $e) {
       Error::logException($this->logger, $e);
+
+      // FIXED: Extract response body for better debugging.
+      if ($e->hasResponse()) {
+        $response = $e->getResponse();
+        $statusCode = $response->getStatusCode();
+        $body = (string) $response->getBody();
+
+        $this->logger->error('Cloudflare API error response. Status: @status, Body: @body', [
+          '@status' => $statusCode,
+          '@body' => $body,
+        ]);
+      }
     }
 
     return NULL;
