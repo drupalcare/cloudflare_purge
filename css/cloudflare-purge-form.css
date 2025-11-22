@@ -151,7 +151,6 @@
 .cloudflare-purge-notice {
   margin-top: 0.75rem;
   padding: 0.75rem;
-  background-color: #f9f9f9;
   border-left: 3px solid #F38020;
   font-size: 0.85rem;
   border-radius: 3px;
@@ -220,13 +219,11 @@
 
 /* Subtle Cloudflare orange on primary button */
 .cloudflare-purge-form .form-actions .button--primary {
-  background-color: #F38020;
   border-color: #F38020;
 }
 
 .cloudflare-purge-form .form-actions .button--primary:hover,
 .cloudflare-purge-form .form-actions .button--primary:focus {
-  background-color: #E06E15;
   border-color: #E06E15;
 }
 
