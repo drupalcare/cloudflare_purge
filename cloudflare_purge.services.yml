@@ -16,3 +16,5 @@ services:
       - '@logger.channel.cloudflare_purge'
       - '@messenger'
       - '@cloudflare_purge.api'
+      - '@module_handler'
+      - '@?key.repository'

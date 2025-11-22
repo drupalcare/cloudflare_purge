@@ -2,9 +2,23 @@ cloudflare_purge.settings:
   type: config_object
   label: 'Cloudflare Purge settings'
   mapping:
-    use_bearer_token:
-      type: boolean
-      label: 'Use Bearer Token'
+    # Authentication and storage method preferences.
+    auth_method:
+      type: string
+      label: 'Authentication method'
+      constraints:
+        Choice:
+          - bearer
+          - legacy
+    storage_method:
+      type: string
+      label: 'Storage method'
+      constraints:
+        Choice:
+          - plain
+          - key
+
+    # Plain text storage fields.
     zone_id:
       type: string
       label: 'Zone ID'
@@ -17,3 +31,23 @@ cloudflare_purge.settings:
     bearer_token:
       type: string
       label: 'Bearer Token'
+
+    # Key module storage fields.
+    zone_id_key:
+      type: string
+      label: 'Zone ID (Key module)'
+    email_key:
+      type: string
+      label: 'Email (Key module)'
+    authorization_key:
+      type: string
+      label: 'Authorization (Key module)'
+    bearer_token_key:
+      type: string
+      label: 'Bearer Token (Key module)'
+
+    # Deprecated: Kept for backward compatibility during migration.
+    # Will be removed in a future version.
+    use_bearer_token:
+      type: boolean
+      label: 'Use Bearer Token (deprecated)'

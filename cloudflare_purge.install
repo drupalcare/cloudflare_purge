@@ -15,6 +15,46 @@ declare(strict_types=1);
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 
 /**
+ * Implements hook_install().
+ */
+function cloudflare_purge_install(): void {
+  // Set default values for new installations.
+  $config = \Drupal::configFactory()->getEditable(CloudflarePurgeForm::SETTINGS);
+
+  // Set modern defaults for fresh installs.
+  $config->set('auth_method', CloudflarePurgeForm::AUTH_BEARER);
+
+  // Default to Key module if installed, otherwise plain text.
+  $module_handler = \Drupal::service('module_handler');
+  $default_storage = $module_handler->moduleExists('key')
+    ? CloudflarePurgeForm::STORAGE_KEY
+    : CloudflarePurgeForm::STORAGE_PLAIN;
+  $config->set('storage_method', $default_storage);
+
+  $config->save();
+}
+
+/**
+ * Implements hook_install().
+ */
+function cloudflare_purge_install(): void {
+  // Set default values for new installations.
+  $config = \Drupal::configFactory()->getEditable(CloudflarePurgeForm::SETTINGS);
+
+  // Set modern defaults for fresh installs.
+  $config->set('auth_method', CloudflarePurgeForm::AUTH_BEARER);
+
+  // Default to Key module if installed, otherwise plain text.
+  $module_handler = \Drupal::service('module_handler');
+  $default_storage = $module_handler->moduleExists('key')
+    ? CloudflarePurgeForm::STORAGE_KEY
+    : CloudflarePurgeForm::STORAGE_PLAIN;
+  $config->set('storage_method', $default_storage);
+
+  $config->save();
+}
+
+/**
  * Implements hook_uninstall().
  */
 function cloudflare_purge_uninstall(bool $is_syncing): void {

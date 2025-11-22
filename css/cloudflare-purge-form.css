@@ -1,0 +1,279 @@
+/**
+ * Cloudflare Purge Form Styles
+ * Subtle integration with admin theme + Cloudflare orange accents
+ */
+
+/* ========== HEADER SECTION ========== */
+.cloudflare-purge-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-left: 4px solid #F38020;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.cloudflare-purge-header__logo img {
+  height: 48px;
+  width: auto;
+  display: block;
+}
+
+.cloudflare-purge-header__content h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
+  font-weight: 600
+}
+
+.cloudflare-purge-header__content p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Mobile: Stack header vertically */
+@media (max-width: 767px) {
+  .cloudflare-purge-header {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* ========== INFO NOTE ========== */
+.cloudflare-purge-info-note {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  border-left: 3px solid #F38020;
+  border-radius: 3px;
+  margin-bottom: 1.5rem;
+}
+
+.cloudflare-purge-info-note__icon img {
+  height: 20px;
+  width: 20px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.cloudflare-purge-info-note__text {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Mobile: Stack note vertically */
+@media (max-width: 767px) {
+  .cloudflare-purge-info-note {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+/* ========== TWO COLUMN LAYOUT ========== */
+.cloudflare-purge-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Desktop: Two columns */
+@media (min-width: 768px) {
+  .cloudflare-purge-layout {
+    grid-template-columns: 300px 1fr;
+  }
+}
+
+@media (min-width: 1200px) {
+  .cloudflare-purge-layout {
+    grid-template-columns: 450px 1fr;
+  }
+}
+
+/* ========== LEFT PANEL: Configuration ========== */
+.cloudflare-purge-config-panel {
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.cloudflare-purge-config-panel legend {
+  font-weight: 600;
+  font-size: 1.1rem;
+  padding: 0 0.5rem;
+}
+
+/* Radio groups spacing */
+.cloudflare-purge-config-panel .form-radios {
+  margin-top: 0.5rem;
+}
+
+/* Radio labels with icons */
+.cloudflare-purge-config-panel .form-radios .form-type-radio {
+  margin-bottom: 0.75rem;
+}
+
+.cloudflare-purge-config-panel .form-radios label {
+  font-weight: 500;
+  padding-left: 0.25rem;
+}
+
+/* Section titles with icons */
+.fieldset-icon {
+  height: 20px;
+  width: 20px;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+  opacity: 0.7;
+}
+
+/* Highlight first option (recommended) with Cloudflare color */
+.cloudflare-purge-config-panel .form-radios .form-type-radio:first-child label::after {
+  content: " (recommended)";
+  color: #F38020;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+/* Section descriptions */
+.cloudflare-purge-config-panel .description {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Key module notice */
+.cloudflare-purge-notice {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f9f9f9;
+  border-left: 3px solid #F38020;
+  font-size: 0.85rem;
+  border-radius: 3px;
+}
+
+.cloudflare-purge-notice a {
+  color: #F38020;
+  text-decoration: underline;
+}
+
+/* ========== RIGHT PANEL: Credentials ========== */
+.cloudflare-purge-credentials-panel {
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-height: 300px;
+}
+
+.cloudflare-purge-credentials-panel legend {
+  font-weight: 600;
+  font-size: 1.1rem;
+  padding: 0 0.5rem;
+}
+
+/* Form items spacing */
+.cloudflare-purge-credentials-panel .form-item {
+  margin-bottom: 1.25rem;
+}
+
+.cloudflare-purge-credentials-panel label {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.cloudflare-purge-credentials-panel .description {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+/* Input fields */
+.cloudflare-purge-credentials-panel input[type="text"],
+.cloudflare-purge-credentials-panel select {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border-radius: 3px;
+}
+
+/* Focus state with Cloudflare orange accent */
+.cloudflare-purge-credentials-panel input[type="text"]:focus,
+.cloudflare-purge-credentials-panel select:focus {
+  border-color: #F38020;
+  outline: none;
+  box-shadow: 0 0 0 1px #F38020;
+}
+
+/* ========== SUBMIT BUTTON ========== */
+.cloudflare-purge-form .form-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+/* Subtle Cloudflare orange on primary button */
+.cloudflare-purge-form .form-actions .button--primary {
+  background-color: #F38020;
+  border-color: #F38020;
+}
+
+.cloudflare-purge-form .form-actions .button--primary:hover,
+.cloudflare-purge-form .form-actions .button--primary:focus {
+  background-color: #E06E15;
+  border-color: #E06E15;
+}
+
+/* ========== OVERRIDE MESSAGE ========== */
+.cloudflare-purge-form .messages--warning {
+  padding: 1.5rem;
+  border-radius: 4px;
+}
+
+/* ========== RESPONSIVE ADJUSTMENTS ========== */
+
+/* Tablet and below: Stack columns */
+@media (max-width: 767px) {
+  .cloudflare-purge-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cloudflare-purge-config-panel,
+  .cloudflare-purge-credentials-panel {
+    min-height: auto;
+  }
+}
+
+/* ========== ACCESSIBILITY ========== */
+
+/* Focus visible for keyboard navigation */
+.cloudflare-purge-config-panel .form-radio:focus-visible + label,
+.cloudflare-purge-credentials-panel input:focus-visible {
+  outline: 2px solid #F38020;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .cloudflare-purge-header {
+    border-width: 2px;
+  }
+
+  .cloudflare-purge-info-note {
+    border-width: 4px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .cloudflare-purge-credentials-panel input,
+  .cloudflare-purge-form .button--primary {
+    transition: none;
+  }
+}

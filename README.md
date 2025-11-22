@@ -35,11 +35,15 @@ Use this module when you need to manually purge Cloudflare cache and:
 - **Purge by URL** - Clear specific URLs or resources
 - **Bearer Token Authentication** - Modern, secure API authentication (recommended)
 - **Legacy API Key Authentication** - Support for Email + API Key method
-- **Settings.php Override** - Store credentials securely in settings.php
+- **Key Module Integration** - Secure credential storage with the Key module (optional)
+- **Plain Text Storage** - Quick setup with database storage
+- **Settings.php Override** - Store credentials securely in settings.php for production
+- **Smart Detection** - Automatically detects existing configuration on upgrade
 - **Drush 13 Commands** - Command-line cache purging with modern PHP attributes
 - **CSRF Protection** - Built-in security for all routes
 - **Permissions System** - Granular access control
 - **Free Tier Compatible** - Works with Cloudflare's free plan
+- **Responsive UI** - Modern two-column layout with Cloudflare branding
 
 ## Requirements
 
@@ -49,6 +53,10 @@ Use this module when you need to manually purge Cloudflare cache and:
 - **Cloudflare API Access**: Zone ID and either:
   - Bearer Token with Cache Purge permission (recommended), OR
   - Global API Key + Account Email
+
+### Optional
+
+- **[Key Module](https://www.drupal.org/project/key)** - For enhanced credential security (recommended for production)
 
 ## Installation
 
@@ -65,19 +73,32 @@ drush en cloudflare_purge
 
 ### Via Web Interface
 
-1. Navigate to **Administration** » **Configuration** » **Cloudflare Purge** » **Credentials**  
-   (`/admin/config/cloudflare-purge/credentials`)
+1. Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge**  
+   (`/admin/config/development/cloudflare-purge`)
 
-2. Choose your authentication method:
+2. **Choose Authentication Method:**
 
-#### Option A: Bearer Token (Recommended)
+   - **Bearer Token** (recommended) - Modern API Token authentication
+   - **Legacy API Key/Email** - Email + Global API Key method
+
+3. **Choose Storage Method:**
+
+   - **Plain text input** - Store credentials in Drupal configuration (database)
+   - **Secure key input** - Use the Key module for enhanced security (requires Key module)
+
+4. Enter your credentials based on your selections
+
+5. Save configuration
+
+#### Authentication: Bearer Token (Recommended)
 
 This is the most secure method with granular permissions.
 
-1. Check **"Use Bearer Token"**
-2. Enter your **Zone ID**
-3. Enter your **Bearer Token**
-4. Save configuration
+1. Select **"Bearer Token"** as your authentication method
+2. Choose your storage method
+3. Enter your **Zone ID**
+4. Enter your **Bearer Token** (or select from Key module if using secure storage)
+5. Save configuration
 
 **Creating a Bearer Token:**
 
@@ -91,15 +112,47 @@ This is the most secure method with granular permissions.
 7. Click **Continue to summary** » **Create Token**
 8. Copy the token (you won't see it again!)
 
-#### Option B: Global API Key (Legacy)
+#### Authentication: Legacy API Key
 
 Less secure, grants full account access. Use only if Bearer Token is not available.
 
-1. Uncheck **"Use Bearer Token"**
-2. Enter your **Zone ID**
-3. Enter your **Email** (Cloudflare account email)
-4. Enter your **Authorization** (Global API Key)
-5. Save configuration
+1. Select **"Legacy API Key/Email"** as your authentication method
+2. Choose your storage method
+3. Enter your **Zone ID**
+4. Enter your **Email** (Cloudflare account email)
+5. Enter your **API Key** (Global API Key)
+6. Save configuration
+
+#### Storage: Secure Key Input (Recommended)
+
+For production environments, use the Key module to store credentials outside the database:
+
+1. Install and enable the [Key module](https://www.drupal.org/project/key):
+   ```bash
+   composer require drupal/key
+   drush en key
+   ```
+
+2. Create keys for your credentials:
+   - Navigate to **Configuration** » **System** » **Keys** (`/admin/config/system/keys`)
+   - Create a key for Zone ID
+   - Create a key for Bearer Token (or Email/API Key for legacy)
+   - Recommended key provider: "Configuration" for development, "File" for production
+
+3. In Cloudflare Purge settings:
+   - Select **"Secure key input"** as storage method
+   - Select your keys from the dropdown menus
+   - Save configuration
+
+#### Storage: Plain Text Input
+
+For development or quick setup:
+
+1. Select **"Plain text input"** as storage method
+2. Enter credentials directly in the text fields
+3. Save configuration
+
+**Note:** Plain text credentials are stored in Drupal's configuration system (database). For production, use either Secure key input or settings.php override.
 
 **Finding Your Credentials:**
 
@@ -108,35 +161,64 @@ Less secure, grants full account access. Use only if Bearer Token is not availab
 
 ### Via settings.php (Recommended for Production)
 
-For enhanced security, store credentials in `settings.php` to prevent them from being changed via the UI:
+For enhanced security, store credentials in `settings.php`. When a **complete set** of credentials is detected in settings.php, the configuration form will be automatically disabled.
+
+**Important:** You must provide a complete set of credentials:
+- Bearer Token method: `zone_id` + `bearer_token`
+- Legacy method: `zone_id` + `email` + `authorization`
+
+Partial credentials will trigger a warning but allow form configuration.
+
+#### Bearer Token (Recommended)
 
 ```php
-// Bearer Token method (recommended)
 $settings['cloudflare_purge_credentials'] = [
-  'use_bearer_token' => TRUE,
   'zone_id' => 'your-zone-id-here',
   'bearer_token' => 'your-bearer-token-here',
 ];
+```
 
-// OR legacy API Key method
+#### Legacy API Key
+
+```php
 $settings['cloudflare_purge_credentials'] = [
-  'use_bearer_token' => FALSE,
   'zone_id' => 'your-zone-id-here',
   'email' => 'your-email@example.com',
   'authorization' => 'your-global-api-key-here',
 ];
 ```
 
-When credentials are set in `settings.php`, the corresponding form fields will be disabled in the admin UI.
+#### Environment-Specific Configuration
+
+```php
+// Load from environment variables
+if (isset($_ENV['CLOUDFLARE_ZONE_ID'])) {
+  $settings['cloudflare_purge_credentials'] = [
+    'zone_id' => $_ENV['CLOUDFLARE_ZONE_ID'],
+    'bearer_token' => $_ENV['CLOUDFLARE_BEARER_TOKEN'],
+  ];
+}
+```
+
+**Benefits of settings.php:**
+- Credentials never stored in database
+- Not exported with configuration
+- Perfect for multi-environment workflows (dev/staging/production)
+- Highest security level
 
 ## Usage
 
 ### Web Interface
 
+#### Configure Credentials
+
+Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge**  
+(`/admin/config/development/cloudflare-purge`)
+
 #### Purge Everything
 
-Navigate to **Administration** » **Configuration** » **Cloudflare Purge** » **Purge Everything**  
-(`/admin/config/cloudflare-purge/purge-all`)
+Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge** » **Purge Everything**  
+(`/admin/config/development/cloudflare-purge/purge-all`)
 
 Click the link to purge all cached content from Cloudflare.
 
@@ -144,8 +226,8 @@ Click the link to purge all cached content from Cloudflare.
 
 #### Purge by URL
 
-Navigate to **Administration** » **Configuration** » **Cloudflare Purge** » **Purge by URL**  
-(`/admin/config/cloudflare-purge/purge-url`)
+Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge** » **Purge by URL**  
+(`/admin/config/development/cloudflare-purge/purge-url`)
 
 Enter a fully qualified URL to purge:
 - `https://example.com`
@@ -209,6 +291,7 @@ This module implements several security measures:
 - **Permission-Based Access**: Granular permission system controls who can purge cache
 - **Guzzle HTTP Client**: Uses Drupal's secure HTTP client (Guzzle) instead of cURL
 - **Settings.php Override**: Credentials can be stored outside the database
+- **Key Module Integration**: Optional secure credential storage
 - **Bearer Token Support**: Modern authentication with limited scope permissions
 - **Input Validation**: URL validation prevents malformed purge requests
 - **Error Logging**: Failed API calls are logged to watchdog for debugging
@@ -220,8 +303,37 @@ This module implements several security measures:
 **Problem:** Credentials are not configured or are empty.
 
 **Solution:** 
-1. Verify Zone ID, Email/API Key or Bearer Token are entered in the configuration form
-2. If using `settings.php`, verify the array keys match exactly: `zone_id`, `email`, `authorization`, or `bearer_token`
+1. Verify Zone ID and either Bearer Token or Email/API Key are entered in the configuration form
+2. If using `settings.php`, verify you have a complete set of credentials
+3. Check that field names match exactly: `zone_id`, `email`, `authorization`, or `bearer_token`
+
+### Incomplete Credentials Warning
+
+**Problem:** Warning message about incomplete credentials in settings.php.
+
+**Solution:**
+You have partial credentials in `settings.php` but not a complete set. Either:
+
+1. **Complete the configuration in settings.php:**
+   - Bearer Token: Add both `zone_id` AND `bearer_token`
+   - Legacy: Add `zone_id`, `email`, AND `authorization`
+
+2. **Remove partial configuration from settings.php:**
+   - Use the web form instead
+   - Form will remain enabled until settings.php has a complete set
+
+### Key Module Not Showing
+
+**Problem:** "Secure key input" option not available.
+
+**Solution:**
+1. Install the Key module:
+   ```bash
+   composer require drupal/key
+   drush en key
+   ```
+2. Clear cache: `drush cr`
+3. Refresh the configuration form
 
 ### API Call Fails (Check Drupal Log)
 
@@ -291,3 +403,5 @@ This is an independent open-source project with no official association with Clo
 Cloudflare® is a registered trademark of Cloudflare, Inc.
 
 ## License
+
+This project is licensed under the GNU General Public License v2.0 or later.
