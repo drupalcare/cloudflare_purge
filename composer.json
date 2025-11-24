@@ -19,8 +19,7 @@
     ],
     "support": {
         "issues": "https://www.drupal.org/project/issues/cloudflare_purge",
-        "source": "https://git.drupalcode.org/project/cloudflare_purge",
-        "docs": "https://www.drupal.org/docs/contributed-modules/cloudflare_purge"
+        "source": "https://git.drupalcode.org/project/cloudflare_purge"
     },
     "require": {
         "php": ">=8.1",
