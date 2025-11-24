@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * @file
  * Cloudflare Purge module file.
@@ -10,7 +12,6 @@
  * Developer:    Alaa Haddad https://www.alaahaddad.com.
  */
 
-declare(strict_types=1);
 
 use Drupal\Core\Routing\RouteMatchInterface;
 

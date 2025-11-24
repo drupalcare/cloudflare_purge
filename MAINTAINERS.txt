@@ -1,0 +1,10 @@
+Alaa Haddad <alaa@flashwebcenter.com>
+- https://www.drupal.org/u/flashwebcenter
+- https://github.com/alaahaddad
+- Role: Creator and lead maintainer
+- Organization: Flash Web Center LLC, Austin, Texas
+
+This project is maintained by Flash Web Center LLC.
+- Website: https://flashwebcenter.com
+- Drupal Services: https://drupalcare.com
+- Portfolio: https://alaahaddad.com

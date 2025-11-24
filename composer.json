@@ -1,22 +1,42 @@
 {
-  "name": "drupal/cloudflare_purge",
-  "description": "Allow customers to purge cached resources from Cloudflare.",
-  "type": "drupal-module",
-  "license": "GPL-2.0-or-later",
-  "authors": [
-    {
-      "name": "Alaa Haddad (alaahaddad.com)",
-      "homepage": "https://www.drupal.org/u/flashwebcenter",
-      "role": "Maintainer"
+    "name": "drupal/cloudflare_purge",
+    "description": "Cloudflare CDN cache purging via API with support for Bearer Token and API Key authentication methods.",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://www.drupal.org/project/cloudflare_purge",
+    "authors": [
+        {
+            "name": "Alaa Haddad",
+            "email": "alaa@flashwebcenter.com",
+            "homepage": "https://alaahaddad.com",
+            "role": "Maintainer"
+        },
+        {
+            "name": "Flash Web Center LLC",
+            "homepage": "https://flashwebcenter.com",
+            "role": "Organization"
+        }
+    ],
+    "support": {
+        "issues": "https://www.drupal.org/project/issues/cloudflare_purge",
+        "source": "https://git.drupalcode.org/project/cloudflare_purge",
+        "docs": "https://www.drupal.org/docs/contributed-modules/cloudflare_purge"
+    },
+    "require": {
+        "php": ">=8.1",
+        "drupal/core": "^10 || ^11"
+    },
+    "require-dev": {
+        "drupal/core-dev": "^10 || ^11"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "drupal/core-composer-scaffold": true,
+            "phpstan/extension-installer": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
     }
-  ],
-  "homepage": "https://drupal.org/project/cloudflare_purge",
-  "support": {
-    "issues": "https://drupal.org/project/issues/cloudflare_purge",
-    "source": "https://git.drupalcode.org/project/cloudflare_purge"
-  },
-  "require": {
-    "php": ">=8.1",
-    "drupal/core": "^10.2 || ^11"
-  }
 }

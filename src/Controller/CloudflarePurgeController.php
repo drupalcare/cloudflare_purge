@@ -12,7 +12,15 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
- * Returns responses for cloudflare_purge module routes.
+ * Provides HTTP controller endpoints for Cloudflare cache purging.
+ *
+ * This controller handles user-initiated cache purge requests for the
+ * Cloudflare CDN integration. It provides route handlers that trigger
+ * cache invalidation operations and redirect users back to their
+ * originating pages with appropriate success or error messages.
+ *
+ * The controller implements comprehensive error handling and logging
+ * to ensure reliable cache purge operations and proper user feedback.
  */
 class CloudflarePurgeController extends ControllerBase {
 
@@ -44,10 +52,14 @@ class CloudflarePurgeController extends ControllerBase {
   }
 
   /**
-   * Stay on the same page.
+   * Gets the URL to redirect to after a cache purge operation.
+   *
+   * Retrieves the HTTP referer from the current request to redirect users
+   * back to the page they came from. Falls back to the site base path if
+   * no referer is available.
    *
    * @return string
-   *   The current URL.
+   *   The URL to redirect to, either the HTTP referer or the site base path.
    */
   public function getCurrentUrl(): string {
     $request = $this->requestStack->getCurrentRequest();
@@ -58,10 +70,19 @@ class CloudflarePurgeController extends ControllerBase {
   }
 
   /**
-   * Purge cloudflare cache.
+   * Purges all content from the Cloudflare CDN cache.
+   *
+   * Initiates a complete cache purge operation for the Cloudflare CDN.
+   * Success and error messages are displayed to the user via the messenger
+   * service. The user is redirected back to their originating page after
+   * the operation completes.
    *
    * @return \Symfony\Component\HttpFoundation\RedirectResponse
-   *   Redirect back to the previous url.
+   *   HTTP redirect response to the user's previous page.
+   *
+   * @throws \Exception
+   *   Thrown when the cache purge operation fails (caught internally and
+   *   converted to user error messages).
    */
   public function purgeAll(): RedirectResponse {
     try {

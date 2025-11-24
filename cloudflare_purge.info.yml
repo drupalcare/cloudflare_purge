@@ -1,8 +1,9 @@
 name: 'Cloudflare Purge'
 type: module
-description: 'Purge cached resources from Cloudflare via API. Supports both Bearer Token and API Key authentication.'
-package: Performance
-core_version_requirement: ^10.2 || ^11
+description: 'Cloudflare CDN cache purging via API with support for Bearer Token and API Key authentication methods.'
+package: 'Performance'
+core_version_requirement: ^10 || ^11
+php: ^8.1
 configure: cloudflare_purge.form
 
 dependencies:

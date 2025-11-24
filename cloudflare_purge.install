@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * @file
  * Cloudflare Purge installation and update functions.
@@ -10,7 +12,6 @@
  * Developer:    Alaa Haddad https://www.alaahaddad.com.
  */
 
-declare(strict_types=1);
 
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 
