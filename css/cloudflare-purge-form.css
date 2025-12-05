@@ -374,16 +374,9 @@
 
 /* ========== WARNING MESSAGES IN FORMS ========== */
 .cloudflare-purge-form .messages--warning {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 1rem 1.25rem;
   border: 1px solid #ffc107;
   border-left: 4px solid #ffc107;
   border-radius: 4px;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
 }
 
 /* ========== SETTINGS FORM SPECIFICS ========== */
