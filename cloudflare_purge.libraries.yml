@@ -1,4 +1,7 @@
+# Cloudflare Purge module libraries.
+
 form:
+  version: VERSION
   css:
     theme:
       css/cloudflare-purge-form.css: {}

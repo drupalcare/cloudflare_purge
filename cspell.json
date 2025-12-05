@@ -1,0 +1,29 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "Alaa",
+    "alaahaddad",
+    "cfpa",
+    "cfph",
+    "cfpp",
+    "cfpt",
+    "cfpu",
+    "Cloudflare",
+    "cloudflare",
+    "Drush",
+    "drush",
+    "Haddad",
+    "hostnames",
+    "Hostnames",
+    "isset",
+    "mysite",
+    "retriable",
+    "unserialize",
+    "unserialized"
+  ],
+  "ignorePaths": [
+    "vendor/**",
+    "node_modules/**"
+  ]
+}

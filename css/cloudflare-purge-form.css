@@ -24,7 +24,7 @@
 .cloudflare-purge-header__content h2 {
   margin: 0 0 0.25rem 0;
   font-size: 1.5rem;
-  font-weight: 600
+  font-weight: 600;
 }
 
 .cloudflare-purge-header__content p {
@@ -225,12 +225,6 @@
 .cloudflare-purge-form .form-actions .button--primary:hover,
 .cloudflare-purge-form .form-actions .button--primary:focus {
   border-color: #E06E15;
-}
-
-/* ========== OVERRIDE MESSAGE ========== */
-.cloudflare-purge-form .messages--warning {
-  padding: 1.5rem;
-  border-radius: 4px;
 }
 
 /* ========== PURGE FORMS (URL, Tag, Prefix, Hostname, Batch) ========== */

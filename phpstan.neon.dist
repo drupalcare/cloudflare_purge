@@ -1,0 +1,36 @@
+parameters:
+  level: 5
+  paths:
+    - src
+    - tests
+  excludePaths:
+    # Drush is an optional dependency and not available in composer.
+    - src/Commands/CloudflarePurgeCommands.php
+  treatPhpDocTypesAsCertain: false
+  ignoreErrors:
+    # Database query interface doesn't expose execute() in type hints.
+    - '#Call to an undefined method Drupal\\Core\\Database\\Query\\ExtendableInterface::execute\(\)#'
+    # Key module is an optional dependency.
+    -
+      message: '#.*Drupal\\\\key\\\\.*#'
+      reportUnmatched: false
+    -
+      identifier: class.notFound
+      path: src/Purge.php
+      reportUnmatched: false
+    -
+      identifier: class.notFound
+      path: src/Form/CloudflarePurgeForm.php
+      reportUnmatched: false
+    # Drupal service container usage in State API helper methods.
+    -
+      identifier: globalDrupalDependencyInjection.useDependencyInjection
+      reportUnmatched: false
+    # Type narrowing that's intentionally defensive.
+    -
+      message: '#Call to function is_string\(\) with string will always evaluate to true#'
+      reportUnmatched: false
+    # Method return type is intentionally broad for flexibility.
+    -
+      message: '#Method.*::determinePurgeType\(\) never returns string so it can be removed from the return type#'
+      reportUnmatched: false

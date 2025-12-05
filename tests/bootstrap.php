@@ -2,14 +2,10 @@
 
 /**
  * @file
- */
-
-declare(strict_types=1);
-
-/**
  * Bootstrap file for PHPUnit tests.
  */
 
+declare(strict_types=1);
 
 // Determine Drupal root directory.
 $root = dirname(__DIR__, 4);

@@ -3,3 +3,10 @@
 
 .DS_Store
 .idea/*
+
+# Composer dependencies (installed by end users)
+/vendor/
+composer.lock
+
+# Node modules (for local development only)
+/node_modules/
