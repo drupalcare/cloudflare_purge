@@ -1,6 +1,19 @@
+# Cloudflare Purge module permissions.
+
 administer cloudflare purge:
   title: 'Administer Cloudflare Purge'
-  restrict access: true
+  description: 'Configure Cloudflare API credentials and auto-purge settings. This permission should be restricted to trusted administrators.'
+  restrict access: TRUE
 
 cloudflare purge:
-  title: 'Purge Cloudflare Cache'
+  title: 'Perform manual Cloudflare purge operations'
+  description: 'Purge content from Cloudflare cache by URL, cache tag, prefix, or hostname.'
+
+cloudflare purge everything:
+  title: 'Purge entire Cloudflare cache'
+  description: 'Clear the entire Cloudflare cache for the configured zone. Use with caution as this affects all cached content.'
+  restrict access: TRUE
+
+view cloudflare purge history:
+  title: 'View Cloudflare purge history'
+  description: 'View the log of recent Cloudflare cache purge operations.'

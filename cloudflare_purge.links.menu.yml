@@ -1,16 +1,73 @@
+# Cloudflare Purge module admin menu links.
+
+# Main configuration link in admin menu.
 cloudflare_purge.admin:
   title: 'Cloudflare Purge'
-  route_name: cloudflare_purge.admin
+  description: 'Configure Cloudflare cache purging settings and credentials.'
+  route_name: cloudflare_purge.form
   parent: system.admin_config
+  weight: 50
+
+# Credentials tab.
 cloudflare_purge.form:
-  title: 'Credentials form'
+  title: 'Credentials'
+  description: 'Configure Cloudflare API credentials.'
   route_name: cloudflare_purge.form
   parent: cloudflare_purge.admin
-cloudflare_purge_url.form:
+  weight: 0
+
+# Settings tab.
+cloudflare_purge.settings:
+  title: 'Auto-Purge Settings'
+  description: 'Configure automatic cache tag purging.'
+  route_name: cloudflare_purge.settings
+  parent: cloudflare_purge.admin
+  weight: 10
+
+# Purge by URL.
+cloudflare_purge.purge_by_url:
   title: 'Purge by URL'
-  route_name: cloudflare_purge_url.form
+  description: 'Purge specific URLs from Cloudflare cache.'
+  route_name: cloudflare_purge.purge_by_url
   parent: cloudflare_purge.admin
-cloudflare_purge.cache:
+  weight: 20
+
+# Purge by cache tag.
+cloudflare_purge.purge_by_tag:
+  title: 'Purge by Cache Tag'
+  description: 'Purge content by cache tags (Enterprise).'
+  route_name: cloudflare_purge.purge_by_tag
+  parent: cloudflare_purge.admin
+  weight: 30
+
+# Purge by prefix.
+cloudflare_purge.purge_by_prefix:
+  title: 'Purge by Prefix'
+  description: 'Purge all content under URL prefixes (Enterprise).'
+  route_name: cloudflare_purge.purge_by_prefix
+  parent: cloudflare_purge.admin
+  weight: 40
+
+# Purge by hostname.
+cloudflare_purge.purge_by_hostname:
+  title: 'Purge by Hostname'
+  description: 'Purge all content for hostnames (Enterprise).'
+  route_name: cloudflare_purge.purge_by_hostname
+  parent: cloudflare_purge.admin
+  weight: 50
+
+# Purge everything (destructive).
+cloudflare_purge.purge_everything:
   title: 'Purge Everything'
-  route_name: cloudflare_purge.cache
+  description: 'Clear the entire Cloudflare cache for your zone.'
+  route_name: cloudflare_purge.purge_everything
   parent: cloudflare_purge.admin
+  weight: 60
+
+# Purge history.
+cloudflare_purge.history:
+  title: 'Purge History'
+  description: 'View recent purge operations.'
+  route_name: cloudflare_purge.history
+  parent: cloudflare_purge.admin
+  weight: 90

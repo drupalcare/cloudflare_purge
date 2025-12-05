@@ -1,3 +1,5 @@
+# Drush services for Cloudflare Purge module.
+
 services:
   cloudflare_purge.commands:
     class: Drupal\cloudflare_purge\Commands\CloudflarePurgeCommands

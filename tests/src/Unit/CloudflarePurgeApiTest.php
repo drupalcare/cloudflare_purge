@@ -19,21 +19,27 @@ use PHPUnit\Framework\TestCase;
 class CloudflarePurgeApiTest extends TestCase {
 
   /**
-   * Test successful cache purge with Bearer Token.
-   *
-   * @covers ::cfPurgeCache
+   * Valid test zone ID (32-character hex).
    */
-  public function testPurgeCacheWithBearerToken(): void {
+  private const TEST_ZONE_ID = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+
+  /**
+   * Test purge everything with Bearer Token.
+   *
+   * @covers ::purgeEverything
+   */
+  public function testPurgeEverythingWithBearerToken(): void {
     $httpClient = $this->createMock(ClientInterface::class);
     $logger = $this->createMock(LoggerChannelInterface::class);
 
-    // Mock successful response.
-    $response = new Response(200);
+    $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
+    $response = new Response(200, [], $responseBody);
+
     $httpClient->expects($this->once())
       ->method('request')
       ->with(
         'POST',
-        'https://api.cloudflare.com/client/v4/zones/test-zone-id/purge_cache',
+        'https://api.cloudflare.com/client/v4/zones/' . self::TEST_ZONE_ID . '/purge_cache',
         $this->callback(function ($options) {
           return isset($options['headers']['Authorization'])
             && $options['headers']['Authorization'] === 'Bearer test-token'
@@ -43,70 +49,153 @@ class CloudflarePurgeApiTest extends TestCase {
       ->willReturn($response);
 
     $api = new CloudflarePurgeApi($httpClient, $logger);
-    $result = $api->cfPurgeCache(TRUE, 'test-zone-id', 'test-token', NULL, NULL, '');
+    $result = $api->purgeEverything(TRUE, self::TEST_ZONE_ID, 'test-token', NULL, NULL);
 
-    $this->assertSame(200, $result);
+    $this->assertTrue($result->isSuccess());
+    $this->assertSame(200, $result->getStatusCode());
   }
 
   /**
-   * Test successful cache purge with API Key.
+   * Test purge everything with legacy API Key.
    *
-   * @covers ::cfPurgeCache
+   * @covers ::purgeEverything
    */
-  public function testPurgeCacheWithApiKey(): void {
+  public function testPurgeEverythingWithApiKey(): void {
     $httpClient = $this->createMock(ClientInterface::class);
     $logger = $this->createMock(LoggerChannelInterface::class);
 
-    // Mock successful response.
-    $response = new Response(200);
+    $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
+    $response = new Response(200, [], $responseBody);
+
     $httpClient->expects($this->once())
       ->method('request')
       ->with(
         'POST',
-        'https://api.cloudflare.com/client/v4/zones/test-zone-id/purge_cache',
+        'https://api.cloudflare.com/client/v4/zones/' . self::TEST_ZONE_ID . '/purge_cache',
         $this->callback(function ($options) {
           return isset($options['headers']['X-Auth-Email'])
             && $options['headers']['X-Auth-Email'] === 'test@example.com'
             && isset($options['headers']['X-Auth-Key'])
-            && $options['headers']['X-Auth-Key'] === 'test-api-key'
-            && $options['json']['purge_everything'] === TRUE;
+            && $options['headers']['X-Auth-Key'] === 'test-api-key';
         })
       )
       ->willReturn($response);
 
     $api = new CloudflarePurgeApi($httpClient, $logger);
-    $result = $api->cfPurgeCache(FALSE, 'test-zone-id', '', 'test-api-key', 'test@example.com', '');
+    $result = $api->purgeEverything(FALSE, self::TEST_ZONE_ID, '', 'test-api-key', 'test@example.com');
 
-    $this->assertSame(200, $result);
+    $this->assertTrue($result->isSuccess());
   }
 
   /**
-   * Test purge specific URL.
+   * Test purge by URLs.
    *
-   * @covers ::cfPurgeCache
+   * @covers ::purgeByUrls
    */
-  public function testPurgeSpecificUrl(): void {
+  public function testPurgeByUrls(): void {
     $httpClient = $this->createMock(ClientInterface::class);
     $logger = $this->createMock(LoggerChannelInterface::class);
 
-    // Mock successful response.
-    $response = new Response(200);
+    $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
+    $response = new Response(200, [], $responseBody);
+
     $httpClient->expects($this->once())
       ->method('request')
       ->with(
         'POST',
-        'https://api.cloudflare.com/client/v4/zones/test-zone-id/purge_cache',
+        'https://api.cloudflare.com/client/v4/zones/' . self::TEST_ZONE_ID . '/purge_cache',
         $this->callback(function ($options) {
           return isset($options['json']['files'])
-            && $options['json']['files'] === ['https://example.com/test'];
+            && $options['json']['files'] === ['https://example.com/page1', 'https://example.com/page2'];
         })
       )
       ->willReturn($response);
 
     $api = new CloudflarePurgeApi($httpClient, $logger);
-    $result = $api->cfPurgeCache(TRUE, 'test-zone-id', 'test-token', NULL, NULL, 'https://example.com/test');
+    $result = $api->purgeByUrls(
+      TRUE,
+      self::TEST_ZONE_ID,
+      'test-token',
+      NULL,
+      NULL,
+      ['https://example.com/page1', 'https://example.com/page2']
+    );
 
-    $this->assertSame(200, $result);
+    $this->assertTrue($result->isSuccess());
+  }
+
+  /**
+   * Test purge by tags.
+   *
+   * @covers ::purgeByTags
+   */
+  public function testPurgeByTags(): void {
+    $httpClient = $this->createMock(ClientInterface::class);
+    $logger = $this->createMock(LoggerChannelInterface::class);
+
+    $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
+    $response = new Response(200, [], $responseBody);
+
+    $httpClient->expects($this->once())
+      ->method('request')
+      ->with(
+        'POST',
+        'https://api.cloudflare.com/client/v4/zones/' . self::TEST_ZONE_ID . '/purge_cache',
+        $this->callback(function ($options) {
+          return isset($options['json']['tags'])
+            && $options['json']['tags'] === ['node-123', 'taxonomy-term-45'];
+        })
+      )
+      ->willReturn($response);
+
+    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $result = $api->purgeByTags(
+      TRUE,
+      self::TEST_ZONE_ID,
+      'test-token',
+      NULL,
+      NULL,
+      ['node-123', 'taxonomy-term-45']
+    );
+
+    $this->assertTrue($result->isSuccess());
+  }
+
+  /**
+   * Test invalid zone ID format.
+   *
+   * @covers ::purgeEverything
+   */
+  public function testInvalidZoneIdFormat(): void {
+    $httpClient = $this->createMock(ClientInterface::class);
+    $logger = $this->createMock(LoggerChannelInterface::class);
+
+    // Should not make HTTP request with invalid zone ID.
+    $httpClient->expects($this->never())->method('request');
+
+    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $result = $api->purgeEverything(TRUE, 'invalid-zone-id', 'test-token', NULL, NULL);
+
+    $this->assertFalse($result->isSuccess());
+    $this->assertStringContainsString('Invalid Zone ID', $result->getMessage());
+  }
+
+  /**
+   * Test empty URLs returns error.
+   *
+   * @covers ::purgeByUrls
+   */
+  public function testEmptyUrlsReturnsError(): void {
+    $httpClient = $this->createMock(ClientInterface::class);
+    $logger = $this->createMock(LoggerChannelInterface::class);
+
+    $httpClient->expects($this->never())->method('request');
+
+    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $result = $api->purgeByUrls(TRUE, self::TEST_ZONE_ID, 'test-token', NULL, NULL, []);
+
+    $this->assertFalse($result->isSuccess());
+    $this->assertStringContainsString('No valid URLs', $result->getMessage());
   }
 
 }

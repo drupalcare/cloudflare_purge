@@ -1,14 +1,17 @@
 services:
+  # Logger channel for all Cloudflare Purge operations.
   logger.channel.cloudflare_purge:
     parent: logger.channel_base
     arguments: ['cloudflare_purge']
 
+  # Low-level API service for Cloudflare communication.
   cloudflare_purge.api:
     class: Drupal\cloudflare_purge\CloudflarePurgeApi
     arguments:
       - '@http_client'
       - '@logger.channel.cloudflare_purge'
 
+  # Main purge service with credential resolution and messaging.
   cloudflare_purge.purge:
     class: Drupal\cloudflare_purge\Purge
     arguments:
@@ -18,3 +21,24 @@ services:
       - '@cloudflare_purge.api'
       - '@module_handler'
       - '@?key.repository'
+
+  # Cache tag invalidator for automatic Cloudflare purging.
+  cloudflare_purge.cache_tag_invalidator:
+    class: Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator
+    arguments:
+      - '@cloudflare_purge.purge'
+      - '@config.factory'
+      - '@logger.channel.cloudflare_purge'
+      - '@queue'
+    tags:
+      # Lower priority so Drupal's internal invalidation runs first.
+      - { name: cache_tags_invalidator, priority: -100 }
+
+  # Event subscriber for adding Cache-Tag headers to responses.
+  cloudflare_purge.event_subscriber:
+    class: Drupal\cloudflare_purge\EventSubscriber\CloudflarePurgeSubscriber
+    arguments:
+      - '@config.factory'
+      - '@logger.channel.cloudflare_purge'
+    tags:
+      - { name: event_subscriber }

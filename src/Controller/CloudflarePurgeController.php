@@ -4,40 +4,38 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Controller;
 
-use Drupal\cloudflare_purge\Purge;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Provides HTTP controller endpoints for Cloudflare cache purging.
  *
- * This controller handles user-initiated cache purge requests for the
- * Cloudflare CDN integration. It provides route handlers that trigger
- * cache invalidation operations and redirect users back to their
- * originating pages with appropriate success or error messages.
+ * This controller handles user-initiated cache purge requests and
+ * provides a history view of recent purge operations.
  *
- * The controller implements comprehensive error handling and logging
- * to ensure reliable cache purge operations and proper user feedback.
+ * @package Drupal\cloudflare_purge\Controller
  */
-class CloudflarePurgeController extends ControllerBase {
+final class CloudflarePurgeController extends ControllerBase {
 
   /**
    * Constructs a CloudflarePurgeController object.
    *
-   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
-   *   A request stack Symfony instance.
-   * @param \Drupal\cloudflare_purge\Purge $purgeService
-   *   The Cloudflare purge service.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger channel.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection.
+   * @param \Drupal\Core\Datetime\DateFormatterInterface $dateFormatter
+   *   The date formatter service.
    */
   public function __construct(
-    protected RequestStack $requestStack,
-    protected Purge $purgeService,
-    protected LoggerChannelInterface $logger,
+    private readonly LoggerChannelInterface $logger,
+    private readonly Connection $database,
+    private readonly DateFormatterInterface $dateFormatter,
   ) {}
 
   /**
@@ -45,59 +43,168 @@ class CloudflarePurgeController extends ControllerBase {
    */
   public static function create(ContainerInterface $container): static {
     return new static(
-      $container->get('request_stack'),
-      $container->get('cloudflare_purge.purge'),
-      $container->get('logger.channel.cloudflare_purge')
+      $container->get('logger.channel.cloudflare_purge'),
+      $container->get('database'),
+      $container->get('date.formatter'),
     );
   }
 
   /**
-   * Gets the URL to redirect to after a cache purge operation.
+   * Displays the purge history page.
    *
-   * Retrieves the HTTP referer from the current request to redirect users
-   * back to the page they came from. Falls back to the site base path if
-   * no referer is available.
-   *
-   * @return string
-   *   The URL to redirect to, either the HTTP referer or the site base path.
+   * @return array<string, mixed>
+   *   A render array for the history page.
    */
-  public function getCurrentUrl(): string {
-    $request = $this->requestStack->getCurrentRequest();
-    if ($request->server->get('HTTP_REFERER')) {
-      return $request->server->get('HTTP_REFERER');
+  public function history(): array {
+    $build = [];
+
+    $build['description'] = [
+      '#type' => 'markup',
+      '#markup' => '<p>' . $this->t('Recent Cloudflare cache purge operations from the Drupal log. <a href=":settings">Enable detailed logging</a> in Auto-Purge Settings to see more entries.', [
+        ':settings' => Url::fromRoute('cloudflare_purge.settings')->toString(),
+      ]) . '</p>',
+    ];
+
+    // Build table header.
+    $header = [
+      ['data' => $this->t('Date'), 'field' => 'timestamp', 'sort' => 'desc'],
+      ['data' => $this->t('Type')],
+      ['data' => $this->t('Message')],
+      ['data' => $this->t('User')],
+    ];
+
+    // Query watchdog for cloudflare_purge entries.
+    try {
+      // Check if dblog module is enabled and table exists.
+      if (!$this->database->schema()->tableExists('watchdog')) {
+        $build['error'] = [
+          '#type' => 'markup',
+          '#markup' => '<p>' . $this->t('Database logging is not enabled. Enable the Database Logging module to track purge history.') . '</p>',
+        ];
+        return $build;
+      }
+
+      $query = $this->database->select('watchdog', 'w')
+        ->fields('w', ['wid', 'uid', 'type', 'message', 'variables', 'severity', 'timestamp'])
+        ->condition('w.type', 'cloudflare_purge')
+        ->orderBy('w.timestamp', 'DESC')
+        ->range(0, 100)
+        ->extend('Drupal\Core\Database\Query\TableSortExtender');
+
+      $results = $query->execute();
+
+      if ($results === NULL) {
+        $build['empty'] = [
+          '#type' => 'markup',
+          '#markup' => '<p>' . $this->t('No purge history found.') . '</p>',
+        ];
+        return $build;
+      }
+
+      $rows = [];
+
+      foreach ($results as $row) {
+        $variables = [];
+        if (!empty($row->variables) && is_string($row->variables)) {
+          try {
+            $unserialized = unserialize($row->variables, ['allowed_classes' => FALSE]);
+            if (is_array($unserialized)) {
+              $variables = $unserialized;
+            }
+          }
+          catch (\Throwable) {
+            // Malformed serialized data - skip variables for this entry.
+          }
+        }
+
+        $message = $variables !== []
+          ? $this->t('@message', ['@message' => $row->message] + $variables)
+          : $row->message;
+
+        // Determine purge type from message.
+        $type = $this->determinePurgeType((string) $row->message);
+
+        $username = $this->t('System');
+        if ((int) $row->uid > 0) {
+          try {
+            $user = $this->entityTypeManager()->getStorage('user')->load($row->uid);
+            if ($user !== NULL) {
+              $username = $user->getDisplayName();
+            }
+          }
+          catch (\Exception) {
+            // User may have been deleted.
+            $username = $this->t('User #@uid', ['@uid' => $row->uid]);
+          }
+        }
+
+        $rows[] = [
+          $this->dateFormatter->format((int) $row->timestamp, 'short'),
+          $type,
+          $message,
+          $username,
+        ];
+      }
+
+      if ($rows === []) {
+        $build['empty'] = [
+          '#type' => 'markup',
+          '#markup' => '<p>' . $this->t('No purge history found. Enable detailed logging to track purge operations.') . '</p>',
+        ];
+      }
+      else {
+        $build['table'] = [
+          '#type' => 'table',
+          '#header' => $header,
+          '#rows' => $rows,
+          '#empty' => $this->t('No purge history found.'),
+          '#attributes' => ['class' => ['cloudflare-purge-history']],
+        ];
+      }
     }
-    return base_path();
+    catch (\Exception $e) {
+      $this->logger->error('Failed to load purge history: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+
+      $build['error'] = [
+        '#type' => 'markup',
+        '#markup' => '<p>' . $this->t('Unable to retrieve purge history. An error occurred.') . '</p>',
+      ];
+    }
+
+    return $build;
   }
 
   /**
-   * Purges all content from the Cloudflare CDN cache.
+   * Determines the purge type from the log message.
    *
-   * Initiates a complete cache purge operation for the Cloudflare CDN.
-   * Success and error messages are displayed to the user via the messenger
-   * service. The user is redirected back to their originating page after
-   * the operation completes.
+   * @param string $message
+   *   The log message.
    *
-   * @return \Symfony\Component\HttpFoundation\RedirectResponse
-   *   HTTP redirect response to the user's previous page.
-   *
-   * @throws \Exception
-   *   Thrown when the cache purge operation fails (caught internally and
-   *   converted to user error messages).
+   * @return \Drupal\Core\StringTranslation\TranslatableMarkup|string
+   *   The purge type label.
    */
-  public function purgeAll(): RedirectResponse {
-    try {
-      $this->purgeService->purge();
+  private function determinePurgeType(string $message): TranslatableMarkup|string {
+    $messageLower = strtolower($message);
+
+    if (str_contains($messageLower, 'everything')) {
+      return $this->t('Purge Everything');
     }
-    catch (\Exception $e) {
-      $this->messenger()->addError($this->t('Failed to purge cache: @message', [
-        '@message' => $e->getMessage(),
-      ]));
-      $this->logger->error('Exception during cache purge: @message', [
-        '@message' => $e->getMessage(),
-      ]);
+    if (str_contains($messageLower, 'url')) {
+      return $this->t('URL');
+    }
+    if (str_contains($messageLower, 'tag')) {
+      return $this->t('Cache Tag');
+    }
+    if (str_contains($messageLower, 'prefix')) {
+      return $this->t('Prefix');
+    }
+    if (str_contains($messageLower, 'hostname') || str_contains($messageLower, 'host')) {
+      return $this->t('Hostname');
     }
 
-    return new RedirectResponse($this->getCurrentUrl());
+    return $this->t('Unknown');
   }
 
 }

@@ -24,30 +24,34 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
    * @covers ::getFormId
    */
   public function testGetFormId(): void {
-    $form = $this->createFormWithTranslation();
-    $this->assertSame('cloudflare_purge_url', $form->getFormId());
+    $form = $this->createForm();
+    $this->assertSame('cloudflare_purge_by_url', $form->getFormId());
   }
 
   /**
-   * Test form validation with valid URL.
+   * Test form validation with valid URLs.
    *
    * @covers ::validateForm
    */
-  public function testValidateFormWithValidUrl(): void {
-    $form = $this->createFormWithTranslation();
-    $form_state = $this->createMock(FormStateInterface::class);
+  public function testValidateFormWithValidUrls(): void {
+    $form = $this->createForm();
+    $formState = $this->createMock(FormStateInterface::class);
 
-    // Valid URL should not set error.
-    $form_state->expects($this->any())
+    $formState->expects($this->once())
       ->method('getValue')
-      ->with('url')
-      ->willReturn('https://example.com');
+      ->with('urls')
+      ->willReturn("https://example.com/page1\nhttps://example.com/page2");
 
-    $form_state->expects($this->never())
+    // Valid URLs should not set error, should store parsed URLs.
+    $formState->expects($this->never())
       ->method('setErrorByName');
 
-    $form_array = [];
-    $form->validateForm($form_array, $form_state);
+    $formState->expects($this->once())
+      ->method('set')
+      ->with('parsed_urls', ['https://example.com/page1', 'https://example.com/page2']);
+
+    $formArray = [];
+    $form->validateForm($formArray, $formState);
   }
 
   /**
@@ -56,21 +60,20 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
    * @covers ::validateForm
    */
   public function testValidateFormWithInvalidUrl(): void {
-    $form = $this->createFormWithTranslation();
-    $form_state = $this->createMock(FormStateInterface::class);
+    $form = $this->createForm();
+    $formState = $this->createMock(FormStateInterface::class);
 
-    // Invalid URL should set error.
-    $form_state->expects($this->any())
+    $formState->expects($this->once())
       ->method('getValue')
-      ->with('url')
+      ->with('urls')
       ->willReturn('not-a-valid-url');
 
-    $form_state->expects($this->once())
+    $formState->expects($this->once())
       ->method('setErrorByName')
-      ->with('url', $this->isInstanceOf(TranslatableMarkup::class));
+      ->with('urls', $this->isInstanceOf(TranslatableMarkup::class));
 
-    $form_array = [];
-    $form->validateForm($form_array, $form_state);
+    $formArray = [];
+    $form->validateForm($formArray, $formState);
   }
 
   /**
@@ -79,21 +82,70 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
    * @covers ::validateForm
    */
   public function testValidateFormWithRelativeUrl(): void {
-    $form = $this->createFormWithTranslation();
-    $form_state = $this->createMock(FormStateInterface::class);
+    $form = $this->createForm();
+    $formState = $this->createMock(FormStateInterface::class);
 
-    // Relative URL should set error (requires absolute URL).
-    $form_state->expects($this->any())
+    $formState->expects($this->once())
       ->method('getValue')
-      ->with('url')
+      ->with('urls')
       ->willReturn('/relative/path');
 
-    $form_state->expects($this->once())
+    $formState->expects($this->once())
       ->method('setErrorByName')
-      ->with('url', $this->isInstanceOf(TranslatableMarkup::class));
+      ->with('urls', $this->isInstanceOf(TranslatableMarkup::class));
 
-    $form_array = [];
-    $form->validateForm($form_array, $form_state);
+    $formArray = [];
+    $form->validateForm($formArray, $formState);
+  }
+
+  /**
+   * Test form validation with empty input.
+   *
+   * @covers ::validateForm
+   */
+  public function testValidateFormWithEmptyInput(): void {
+    $form = $this->createForm();
+    $formState = $this->createMock(FormStateInterface::class);
+
+    $formState->expects($this->once())
+      ->method('getValue')
+      ->with('urls')
+      ->willReturn('');
+
+    $formState->expects($this->once())
+      ->method('setErrorByName')
+      ->with('urls', $this->isInstanceOf(TranslatableMarkup::class));
+
+    $formArray = [];
+    $form->validateForm($formArray, $formState);
+  }
+
+  /**
+   * Test form validation with too many URLs.
+   *
+   * @covers ::validateForm
+   */
+  public function testValidateFormWithTooManyUrls(): void {
+    $form = $this->createForm();
+    $formState = $this->createMock(FormStateInterface::class);
+
+    // Create 31 URLs (max is 30).
+    $urls = [];
+    for ($i = 1; $i <= 31; $i++) {
+      $urls[] = "https://example.com/page{$i}";
+    }
+
+    $formState->expects($this->once())
+      ->method('getValue')
+      ->with('urls')
+      ->willReturn(implode("\n", $urls));
+
+    $formState->expects($this->once())
+      ->method('setErrorByName')
+      ->with('urls', $this->isInstanceOf(TranslatableMarkup::class));
+
+    $formArray = [];
+    $form->validateForm($formArray, $formState);
   }
 
   /**
@@ -102,14 +154,9 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
    * @return \Drupal\cloudflare_purge\Form\CloudflarePurgeByUrl
    *   The form instance.
    */
-  protected function createFormWithTranslation(): CloudflarePurgeByUrl {
-    // Mock the Purge service (required constructor argument).
+  protected function createForm(): CloudflarePurgeByUrl {
     $purgeService = $this->createMock(Purge::class);
-
-    // Create form with mocked dependency.
     $form = new CloudflarePurgeByUrl($purgeService);
-
-    // Set up string translation.
     $form->setStringTranslation($this->getStringTranslationStub());
 
     return $form;

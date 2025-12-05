@@ -26,7 +26,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * - settings.php override with config cleanup
  * - Smart credential cleanup when switching methods.
  */
-class CloudflarePurgeForm extends ConfigFormBase {
+final class CloudflarePurgeForm extends ConfigFormBase {
 
   /**
    * Config settings.

@@ -1,48 +1,314 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * @file
- * Cloudflare Purge installation and update functions.
- *
- * Filename:     cloudflare_purge.install
- * Website:      https://www.flashwebcenter.com
- * Description:  template.
- * Developer:    Alaa Haddad https://www.alaahaddad.com.
+ * Install, update and uninstall functions for the Cloudflare Purge module.
  */
 
+declare(strict_types=1);
 
-use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
+use Drupal\Core\Site\Settings;
+use Drupal\Core\Link;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_requirements().
+ */
+function cloudflare_purge_requirements(string $phase): array {
+  $requirements = [];
+
+  if ($phase !== 'runtime') {
+    return $requirements;
+  }
+
+  try {
+    $config = \Drupal::config('cloudflare_purge.settings');
+    $moduleHandler = \Drupal::moduleHandler();
+
+    // Check if credentials are configured.
+    $hasZoneId = FALSE;
+    $hasAuth = FALSE;
+    $storageMethod = 'Unknown';
+
+    // Check settings.php first.
+    $settingsCredentials = Settings::get('cloudflare_purge_credentials');
+    if (is_array($settingsCredentials) && !empty($settingsCredentials['zone_id'])) {
+      $hasZoneId = TRUE;
+      $storageMethod = 'settings.php (most secure)';
+      if (!empty($settingsCredentials['bearer_token']) ||
+          (!empty($settingsCredentials['email']) && !empty($settingsCredentials['authorization']))) {
+        $hasAuth = TRUE;
+      }
+    }
+
+    // Check Key module if settings.php not configured.
+    if (!$hasZoneId && $moduleHandler->moduleExists('key')) {
+      $keyRepository = \Drupal::service('key.repository');
+      $zoneIdKey = $config->get('zone_id_key');
+      if (is_string($zoneIdKey) && $zoneIdKey !== '') {
+        $key = $keyRepository->getKey($zoneIdKey);
+        if ($key !== NULL && $key->getKeyValue()) {
+          $hasZoneId = TRUE;
+          $storageMethod = 'Key module (secure)';
+        }
+      }
+
+      $bearerKey = $config->get('bearer_token_key');
+      $emailKey = $config->get('email_key');
+      $authKey = $config->get('authorization_key');
+
+      if ($bearerKey || ($emailKey && $authKey)) {
+        $hasAuth = TRUE;
+      }
+    }
+
+    // Check plain text config.
+    if (!$hasZoneId) {
+      $plainZoneId = $config->get('zone_id');
+      if (is_string($plainZoneId) && $plainZoneId !== '') {
+        $hasZoneId = TRUE;
+        $storageMethod = 'Plain text (database)';
+      }
+
+      $plainBearer = $config->get('bearer_token');
+      $plainEmail = $config->get('email');
+      $plainAuth = $config->get('authorization');
+
+      if ($plainBearer || ($plainEmail && $plainAuth)) {
+        $hasAuth = TRUE;
+      }
+    }
+
+    // Build requirements.
+    $configUrl = Url::fromRoute('cloudflare_purge.form');
+    $configLink = Link::fromTextAndUrl(t('Configure'), $configUrl)->toString();
+
+    if ($hasZoneId && $hasAuth) {
+      $requirements['cloudflare_purge'] = [
+        'title' => t('Cloudflare Purge'),
+        'value' => t('Configured (@method)', ['@method' => $storageMethod]),
+        'severity' => REQUIREMENT_OK,
+      ];
+    }
+    elseif ($hasZoneId && !$hasAuth) {
+      $requirements['cloudflare_purge'] = [
+        'title' => t('Cloudflare Purge'),
+        'value' => t('Incomplete configuration'),
+        'description' => t('Zone ID is configured but authentication credentials are missing. @link', [
+          '@link' => $configLink,
+        ]),
+        'severity' => REQUIREMENT_WARNING,
+      ];
+    }
+    else {
+      $requirements['cloudflare_purge'] = [
+        'title' => t('Cloudflare Purge'),
+        'value' => t('Not configured'),
+        'description' => t('Cloudflare credentials have not been configured. @link', [
+          '@link' => $configLink,
+        ]),
+        'severity' => REQUIREMENT_WARNING,
+      ];
+    }
+
+    // Check Key module availability.
+    if ($moduleHandler->moduleExists('key')) {
+      $requirements['cloudflare_purge_key'] = [
+        'title' => t('Cloudflare Purge - Key Module'),
+        'value' => t('Available'),
+        'description' => t('The Key module is available for secure credential storage.'),
+        'severity' => REQUIREMENT_INFO,
+      ];
+    }
+
+    // Check auto-purge configuration.
+    if ($config->get('auto_purge_enabled') === TRUE) {
+      $requirements['cloudflare_purge_auto'] = [
+        'title' => t('Cloudflare Purge - Auto Purge'),
+        'value' => t('Enabled'),
+        'description' => t('Automatic cache tag purging is enabled. Note: Tag-based purging requires a Cloudflare Enterprise plan.'),
+        'severity' => REQUIREMENT_INFO,
+      ];
+    }
+  }
+  catch (\Exception $e) {
+    $requirements['cloudflare_purge'] = [
+      'title' => t('Cloudflare Purge'),
+      'value' => t('Error'),
+      'description' => t('An error occurred checking Cloudflare Purge status: @message', [
+        '@message' => $e->getMessage(),
+      ]),
+      'severity' => REQUIREMENT_ERROR,
+    ];
+  }
+
+  return $requirements;
+}
 
 /**
  * Implements hook_install().
  */
 function cloudflare_purge_install(): void {
-  // Set default values for new installations.
-  $config = \Drupal::configFactory()->getEditable(CloudflarePurgeForm::SETTINGS);
+  try {
+    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+    $moduleHandler = \Drupal::moduleHandler();
 
-  // Set modern defaults for fresh installs.
-  $config->set('auth_method', CloudflarePurgeForm::AUTH_BEARER);
+    // Set default authentication method.
+    $config->set('auth_method', 'bearer');
 
-  // Default to Key module if installed, otherwise plain text.
-  $module_handler = \Drupal::service('module_handler');
-  $default_storage = $module_handler->moduleExists('key')
-    ? CloudflarePurgeForm::STORAGE_KEY
-    : CloudflarePurgeForm::STORAGE_PLAIN;
-  $config->set('storage_method', $default_storage);
+    // Set storage method based on Key module availability.
+    if ($moduleHandler->moduleExists('key')) {
+      $config->set('storage_method', 'key');
+    }
+    else {
+      $config->set('storage_method', 'plain');
+    }
 
-  $config->save();
+    // Set default entity types for auto-purge.
+    $config->set('auto_purge_entity_types', ['node', 'taxonomy_term', 'media']);
+
+    // Ensure all boolean settings default to FALSE.
+    $booleanSettings = [
+      'auto_purge_enabled',
+      'auto_purge_use_queue',
+      'rate_limit_enabled',
+      'logging_enabled',
+    ];
+
+    foreach ($booleanSettings as $setting) {
+      if ($config->get($setting) === NULL) {
+        $config->set($setting, FALSE);
+      }
+    }
+
+    // Set default rate limit.
+    if ($config->get('rate_limit_per_minute') === NULL) {
+      $config->set('rate_limit_per_minute', 60);
+    }
+
+    $config->save();
+
+    \Drupal::messenger()->addStatus(t('Cloudflare Purge has been installed. Please <a href=":url">configure your credentials</a>.', [
+      ':url' => '/admin/config/cloudflare-purge/credentials',
+    ]));
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('cloudflare_purge')->error('Error during installation: @message', [
+      '@message' => $e->getMessage(),
+    ]);
+  }
 }
 
 /**
  * Implements hook_uninstall().
  */
-function cloudflare_purge_uninstall(bool $is_syncing): void {
-  if ($is_syncing) {
-    return;
+function cloudflare_purge_uninstall(): void {
+  try {
+    // Delete configuration.
+    \Drupal::configFactory()->getEditable('cloudflare_purge.settings')->delete();
+
+    // Clear any queued items.
+    $queue = \Drupal::queue('cloudflare_purge_tags');
+    $queue->deleteQueue();
+
+    \Drupal::logger('cloudflare_purge')->info('Cloudflare Purge module uninstalled and configuration cleared.');
   }
-  \Drupal::configFactory()
-    ->getEditable(CloudflarePurgeForm::SETTINGS)
-    ->delete();
+  catch (\Exception $e) {
+    \Drupal::logger('cloudflare_purge')->error('Error during uninstall: @message', [
+      '@message' => $e->getMessage(),
+    ]);
+  }
+}
+
+/**
+ * Add auto-purge configuration settings.
+ */
+function cloudflare_purge_update_9001(): string {
+  try {
+    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+
+    // Add new settings with defaults.
+    $newSettings = [
+      'auto_purge_enabled' => FALSE,
+      'auto_purge_entity_types' => ['node', 'taxonomy_term', 'media'],
+      'auto_purge_use_queue' => FALSE,
+      'tag_prefix' => '',
+      'rate_limit_enabled' => FALSE,
+      'rate_limit_per_minute' => 60,
+      'logging_enabled' => FALSE,
+    ];
+
+    foreach ($newSettings as $key => $default) {
+      if ($config->get($key) === NULL) {
+        $config->set($key, $default);
+      }
+    }
+
+    $config->save();
+
+    return t('Added auto-purge configuration settings.');
+  }
+  catch (\Exception $e) {
+    return t('Error adding auto-purge settings: @message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Migrate deprecated use_bearer_token to auth_method.
+ */
+function cloudflare_purge_update_9002(): string {
+  try {
+    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+
+    // Check for deprecated use_bearer_token setting.
+    $useBearerToken = $config->get('use_bearer_token');
+
+    if ($useBearerToken !== NULL) {
+      // Migrate to new auth_method setting.
+      $authMethod = $useBearerToken ? 'bearer' : 'legacy';
+      $config->set('auth_method', $authMethod);
+
+      // Remove deprecated setting.
+      $config->clear('use_bearer_token');
+      $config->save();
+
+      return t('Migrated use_bearer_token to auth_method: @method', ['@method' => $authMethod]);
+    }
+
+    // Ensure auth_method exists.
+    if ($config->get('auth_method') === NULL) {
+      $config->set('auth_method', 'bearer');
+      $config->save();
+    }
+
+    return t('Authentication method configuration verified.');
+  }
+  catch (\Exception $e) {
+    return t('Error migrating authentication settings: @message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Add storage_method configuration.
+ */
+function cloudflare_purge_update_9003(): string {
+  try {
+    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+
+    if ($config->get('storage_method') === NULL) {
+      $moduleHandler = \Drupal::moduleHandler();
+
+      // Default to key if available, otherwise plain.
+      $storageMethod = $moduleHandler->moduleExists('key') ? 'key' : 'plain';
+      $config->set('storage_method', $storageMethod);
+      $config->save();
+
+      return t('Added storage_method configuration: @method', ['@method' => $storageMethod]);
+    }
+
+    return t('Storage method configuration already exists.');
+  }
+  catch (\Exception $e) {
+    return t('Error adding storage method: @message', ['@message' => $e->getMessage()]);
+  }
 }

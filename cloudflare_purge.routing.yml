@@ -1,36 +1,89 @@
-cloudflare_purge.admin:
-  path: '/admin/config/cloudflare-purge'
-  defaults:
-    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
-    _title: 'Cloudflare Purge'
-  requirements:
-    _permission: 'cloudflare purge'
+# Cloudflare Purge module routing configuration.
 
+# Main credentials configuration form.
 cloudflare_purge.form:
   path: '/admin/config/cloudflare-purge/credentials'
   defaults:
-    _title: 'Cloudflare Credentials'
     _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeForm'
+    _title: 'Cloudflare Credentials'
   requirements:
     _permission: 'administer cloudflare purge'
+  options:
+    _admin_route: TRUE
 
-cloudflare_purge_url.form:
+# Auto-purge settings form.
+cloudflare_purge.settings:
+  path: '/admin/config/cloudflare-purge/settings'
+  defaults:
+    _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeSettingsForm'
+    _title: 'Auto-Purge Settings'
+  requirements:
+    _permission: 'administer cloudflare purge'
+  options:
+    _admin_route: TRUE
+
+# Purge by URL form (supports single and multiple URLs).
+cloudflare_purge.purge_by_url:
   path: '/admin/config/cloudflare-purge/purge-url'
   defaults:
-    _title: 'Purge by URL'
     _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeByUrl'
-  options:
-    _admin_route: TRUE
+    _title: 'Purge by URL'
   requirements:
     _permission: 'cloudflare purge'
+  options:
+    _admin_route: TRUE
 
-cloudflare_purge.cache:
-  path: '/admin/config/cloudflare-purge/purge-all'
+# Purge by cache tag form.
+cloudflare_purge.purge_by_tag:
+  path: '/admin/config/cloudflare-purge/purge-tag'
   defaults:
-    _title: 'Purge Everything'
-    _controller: '\Drupal\cloudflare_purge\Controller\CloudflarePurgeController::purgeAll'
-  options:
-    _admin_route: TRUE
+    _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeByTag'
+    _title: 'Purge by Cache Tag'
   requirements:
     _permission: 'cloudflare purge'
-    _csrf_token: 'TRUE'
+  options:
+    _admin_route: TRUE
+
+# Purge by URL prefix form.
+cloudflare_purge.purge_by_prefix:
+  path: '/admin/config/cloudflare-purge/purge-prefix'
+  defaults:
+    _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeByPrefix'
+    _title: 'Purge by Prefix'
+  requirements:
+    _permission: 'cloudflare purge'
+  options:
+    _admin_route: TRUE
+
+# Purge by hostname form.
+cloudflare_purge.purge_by_hostname:
+  path: '/admin/config/cloudflare-purge/purge-hostname'
+  defaults:
+    _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeByHostname'
+    _title: 'Purge by Hostname'
+  requirements:
+    _permission: 'cloudflare purge'
+  options:
+    _admin_route: TRUE
+
+# Purge everything confirmation form.
+cloudflare_purge.purge_everything:
+  path: '/admin/config/cloudflare-purge/purge-everything'
+  defaults:
+    _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeEverything'
+    _title: 'Purge Everything'
+  requirements:
+    _permission: 'cloudflare purge everything'
+  options:
+    _admin_route: TRUE
+
+# Purge history page.
+cloudflare_purge.history:
+  path: '/admin/config/cloudflare-purge/history'
+  defaults:
+    _controller: '\Drupal\cloudflare_purge\Controller\CloudflarePurgeController::history'
+    _title: 'Purge History'
+  requirements:
+    _permission: 'view cloudflare purge history'
+  options:
+    _admin_route: TRUE

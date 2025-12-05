@@ -1,0 +1,35 @@
+# Default configuration for Cloudflare Purge module.
+
+# Authentication method: 'bearer' (recommended) or 'legacy'.
+auth_method: bearer
+
+# Credential storage: 'key' (recommended) or 'plain'.
+storage_method: plain
+
+# Plain text credentials (empty by default).
+zone_id: ''
+email: ''
+authorization: ''
+bearer_token: ''
+
+# Key module references (empty by default).
+zone_id_key: ''
+email_key: ''
+authorization_key: ''
+bearer_token_key: ''
+
+# Auto-purge settings.
+auto_purge_enabled: false
+auto_purge_entity_types:
+  - node
+  - taxonomy_term
+  - media
+auto_purge_use_queue: false
+tag_prefix: ''
+
+# Rate limiting.
+rate_limit_enabled: false
+rate_limit_per_minute: 60
+
+# Logging.
+logging_enabled: false

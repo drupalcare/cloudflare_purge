@@ -1,6 +1,6 @@
 # Cloudflare Purge
 
-Manually purge cached resources from Cloudflare directly from your Drupal site.
+Comprehensive Cloudflare CDN cache purging directly from your Drupal site.
 
 ## Table of Contents
 
@@ -22,24 +22,32 @@ This module provides integration with Cloudflare's API to purge cached content f
 
 ### When to Use This Module
 
-Use this module when you need to manually purge Cloudflare cache and:
+Use this module when you need to purge Cloudflare cache and:
 
 - You're using Cloudflare through a [Certified Cloudflare Hosting Partner](https://www.cloudflare.com/partners) but don't have direct access to the Cloudflare dashboard
 - You need a simple, lightweight solution without additional dependencies
 - You want command-line control via Drush commands
 - You can't use the full Purge module ecosystem
+- You want automatic cache invalidation when Drupal content changes (Enterprise)
 
 ## Features
 
-- **Purge Everything** - Clear all cached content from Cloudflare
-- **Purge by URL** - Clear specific URLs or resources
+- **Purge Everything** - Clear all cached content with confirmation dialog
+- **Purge by URL** - Clear one or more specific URLs (up to 30 per request)
+- **Purge by Cache Tag** - Clear content by cache tags (Enterprise plan required)
+- **Purge by Prefix** - Clear all content under URL prefixes (Enterprise plan required)
+- **Purge by Hostname** - Clear all content for specific hostnames (Enterprise plan required)
+- **Automatic Cache Tag Purging** - Automatically purge Cloudflare when Drupal cache tags are invalidated
+- **Queue-Based Processing** - Queue purge requests for batch processing during cron
+- **Purge History** - View recent purge operations from the admin UI
 - **Bearer Token Authentication** - Modern, secure API authentication (recommended)
 - **Legacy API Key Authentication** - Support for Email + API Key method
 - **Key Module Integration** - Secure credential storage with the Key module (optional)
 - **Plain Text Storage** - Quick setup with database storage
 - **Settings.php Override** - Store credentials securely in settings.php for production
 - **Smart Detection** - Automatically detects existing configuration on upgrade
-- **Drush 13 Commands** - Command-line cache purging with modern PHP attributes
+- **Drush 13 Commands** - Command-line cache purging for all operations
+- **Credential Validation** - Forms disabled until credentials are configured
 - **CSRF Protection** - Built-in security for all routes
 - **Permissions System** - Granular access control
 - **Free Tier Compatible** - Works with Cloudflare's free plan
@@ -47,7 +55,7 @@ Use this module when you need to manually purge Cloudflare cache and:
 
 ## Requirements
 
-- **Drupal**: 10.2+ or 11+
+- **Drupal**: 10.3+ or 11+
 - **PHP**: 8.1 or higher
 - **Cloudflare Account**: Free tier or higher
 - **Cloudflare API Access**: Zone ID and either:
@@ -57,6 +65,7 @@ Use this module when you need to manually purge Cloudflare cache and:
 ### Optional
 
 - **[Key Module](https://www.drupal.org/project/key)** - For enhanced credential security (recommended for production)
+- **Cloudflare Enterprise Plan** - Required for tag, prefix, and hostname purging
 
 ## Installation
 
@@ -73,8 +82,8 @@ drush en cloudflare_purge
 
 ### Via Web Interface
 
-1. Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge**  
-   (`/admin/config/development/cloudflare-purge`)
+1. Navigate to **Administration** » **Configuration** » **Cloudflare Purge**  
+   (`/admin/config/cloudflare-purge/credentials`)
 
 2. **Choose Authentication Method:**
 
@@ -156,7 +165,7 @@ For development or quick setup:
 
 **Finding Your Credentials:**
 
-- **Zone ID**: Found in your Cloudflare dashboard under the domain overview page (right sidebar)
+- **Zone ID**: Found in your Cloudflare dashboard under the domain overview page (right sidebar). It's a 32-character hexadecimal string.
 - **Global API Key**: Profile » API Tokens » View Global API Key
 
 ### Via settings.php (Recommended for Production)
@@ -206,43 +215,51 @@ if (isset($_ENV['CLOUDFLARE_ZONE_ID'])) {
 - Perfect for multi-environment workflows (dev/staging/production)
 - Highest security level
 
+### Auto-Purge Settings (Optional)
+
+Navigate to **Configuration** » **Cloudflare Purge** » **Auto-Purge Settings**  
+(`/admin/config/cloudflare-purge/settings`)
+
+Configure automatic cache purging when Drupal cache tags are invalidated:
+
+- **Enable automatic purging** - Purge Cloudflare when content changes
+- **Entity types** - Select which entities trigger automatic purges (node, taxonomy_term, media, etc.)
+- **Queue processing** - Use queue for high-traffic sites (recommended)
+- **Tag prefix** - Add prefix for multi-site setups sharing a Cloudflare zone
+- **Rate limiting** - Limit requests per minute to avoid API limits
+- **Detailed logging** - Enable for debugging
+
+**Note:** Automatic tag-based purging requires a Cloudflare Enterprise plan.
+
 ## Usage
 
 ### Web Interface
 
-#### Configure Credentials
+Navigate to **Configuration** » **Cloudflare Purge**:
 
-Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge**  
-(`/admin/config/development/cloudflare-purge`)
+| Menu Item | Path | Description |
+|-----------|------|-------------|
+| Credentials | `/admin/config/cloudflare-purge/credentials` | Configure API credentials |
+| Auto-Purge Settings | `/admin/config/cloudflare-purge/settings` | Configure automatic purging |
+| Purge by URL | `/admin/config/cloudflare-purge/purge-url` | Purge 1-30 URLs |
+| Purge by Cache Tag | `/admin/config/cloudflare-purge/purge-tag` | Purge by cache tags (Enterprise) |
+| Purge by Prefix | `/admin/config/cloudflare-purge/purge-prefix` | Purge by URL prefix (Enterprise) |
+| Purge by Hostname | `/admin/config/cloudflare-purge/purge-hostname` | Purge by hostname (Enterprise) |
+| Purge Everything | `/admin/config/cloudflare-purge/purge-everything` | Clear entire cache |
+| Purge History | `/admin/config/cloudflare-purge/history` | View recent operations |
 
-#### Purge Everything
-
-Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge** » **Purge Everything**  
-(`/admin/config/development/cloudflare-purge/purge-all`)
-
-Click the link to purge all cached content from Cloudflare.
-
-**Warning:** This will clear ALL cached files, including static assets. Your origin server will need to serve previously cached content again.
-
-#### Purge by URL
-
-Navigate to **Administration** » **Configuration** » **Development** » **Cloudflare Purge** » **Purge by URL**  
-(`/admin/config/development/cloudflare-purge/purge-url`)
-
-Enter a fully qualified URL to purge:
-- `https://example.com`
-- `https://example.com/foo`
-- `https://example.com/bar.jpg`
+**Note:** Purge forms display a warning and the submit button is disabled until credentials are configured. Configure credentials first, then purge operations will be available.
 
 ## Permissions
 
 Navigate to **Administration** » **People** » **Permissions** to configure:
 
-- **Purge Cloudflare Cache** (`cloudflare purge`)  
-  Allows users to purge cache via UI and view purge pages
-  
-- **Administer Cloudflare Purge** (`administer cloudflare purge`)  
-  Allows users to configure Cloudflare credentials (Zone ID, tokens, etc.)
+| Permission | Machine Name | Description |
+|------------|--------------|-------------|
+| Administer Cloudflare Purge | `administer cloudflare purge` | Configure credentials and settings |
+| Perform manual Cloudflare purge operations | `cloudflare purge` | Purge by URL, tag, prefix, hostname |
+| Purge entire Cloudflare cache | `cloudflare purge everything` | Clear all cached content |
+| View Cloudflare purge history | `view cloudflare purge history` | View recent purge operations |
 
 ## Drush Commands
 
@@ -252,35 +269,103 @@ Navigate to **Administration** » **People** » **Permissions** to configure:
 # Full command
 drush cloudflare:purge-all
 
-# Alias
+# Aliases
 drush cf-purge-all
-
-# Short alias
 drush cfpa
 ```
 
 Purges all cached content from Cloudflare.
 
-### Purge Specific URL
+### Purge by URL
 
 ```bash
-# Full command
+# Single URL
 drush cloudflare:purge-url https://example.com/page
 
-# Alias
-drush cf-purge-url https://example.com/image.jpg
+# Multiple URLs (space-separated)
+drush cf-purge-url https://example.com/a https://example.com/b
 
-# Short alias
-drush cfpu https://example.com/path/to/file.css
+# Multiple URLs (comma-separated)
+drush cfpu "https://example.com/a,https://example.com/b"
 ```
 
-Purges a specific URL from Cloudflare cache.
+Purges specific URLs from Cloudflare cache (up to 30 per request, automatically batched).
+
+### Purge by Cache Tag (Enterprise)
+
+```bash
+# Single tag
+drush cloudflare:purge-tags node-123
+
+# Multiple tags (space-separated)
+drush cf-purge-tags node-123 taxonomy-term-45
+
+# Multiple tags (comma-separated)
+drush cfpt "product-1,product-2,product-3"
+```
+
+Purges content by cache tags (up to 30 per request).
+
+### Purge by Prefix (Enterprise)
+
+```bash
+# Single prefix
+drush cloudflare:purge-prefixes https://example.com/blog/
+
+# Multiple prefixes
+drush cf-purge-prefixes "https://example.com/products/,https://example.com/images/"
+
+# Short alias
+drush cfpp https://example.com/blog/
+```
+
+Purges all content under URL prefixes (up to 30 per request).
+
+### Purge by Hostname (Enterprise)
+
+```bash
+# Single hostname
+drush cloudflare:purge-hostnames www.example.com
+
+# Multiple hostnames
+drush cf-purge-hosts "cdn.example.com,images.example.com"
+
+# Short alias
+drush cfph cdn.example.com
+```
+
+Purges all content for specific hostnames (up to 30 per request).
+
+### Check Status
+
+```bash
+drush cloudflare:status
+drush cf-status
+drush cfs
+```
+
+Shows configuration status and whether credentials are configured.
 
 **Example Output:**
 
 ```bash
 $ drush cloudflare:purge-url https://example.com/node/1
- [success] Successfully purged URL from Cloudflare cache: https://example.com/node/1
+ [success] Successfully purged 1 of 1 URL(s).
+
+$ drush cloudflare:status
+ [success] Cloudflare credentials are configured.
+
+$ drush cloudflare:purge-tags node-123 node-456
+ [success] Successfully purged 2 of 2 tag(s).
+```
+
+**Drush without credentials:**
+
+```bash
+$ drush cloudflare:purge-all
+ [error] Cloudflare credentials are not configured.
+ [notice] Configure credentials at: /admin/config/cloudflare-purge/credentials
+ [notice] Or run: drush cloudflare:status
 ```
 
 ## Security
@@ -288,17 +373,22 @@ $ drush cloudflare:purge-url https://example.com/node/1
 This module implements several security measures:
 
 - **CSRF Token Protection**: All purge routes use Drupal's built-in CSRF token validation
+- **Confirmation Form**: "Purge Everything" requires explicit confirmation
+- **Credential Validation**: Forms disabled until credentials are configured
 - **Permission-Based Access**: Granular permission system controls who can purge cache
 - **Guzzle HTTP Client**: Uses Drupal's secure HTTP client (Guzzle) instead of cURL
 - **Settings.php Override**: Credentials can be stored outside the database
 - **Key Module Integration**: Optional secure credential storage
 - **Bearer Token Support**: Modern authentication with limited scope permissions
-- **Input Validation**: URL validation prevents malformed purge requests
+- **Input Validation**: URL, tag, prefix, and hostname validation prevents malformed requests
+- **Zone ID Validation**: Validates 32-character hexadecimal format
 - **Error Logging**: Failed API calls are logged to watchdog for debugging
+- **Rate Limit Detection**: Detects and reports rate limit errors
+- **Clean Uninstall**: Configuration deleted on module uninstall
 
 ## Troubleshooting
 
-### "Please insert Cloudflare credentials" Error
+### "Cloudflare credentials are not configured" Error
 
 **Problem:** Credentials are not configured or are empty.
 
@@ -306,6 +396,15 @@ This module implements several security measures:
 1. Verify Zone ID and either Bearer Token or Email/API Key are entered in the configuration form
 2. If using `settings.php`, verify you have a complete set of credentials
 3. Check that field names match exactly: `zone_id`, `email`, `authorization`, or `bearer_token`
+
+### Form Submit Button is Disabled
+
+**Problem:** Cannot click the purge button.
+
+**Solution:**
+1. Configure credentials at `/admin/config/cloudflare-purge/credentials`
+2. Save valid credentials
+3. Button will be enabled once credentials are saved
 
 ### Incomplete Credentials Warning
 
@@ -343,16 +442,39 @@ You have partial credentials in `settings.php` but not a complete set. Either:
 1. Check Recent Log Messages: **Administration** » **Reports** » **Recent log messages**
 2. Look for entries from `cloudflare_purge` channel
 3. Common issues:
-   - Invalid Zone ID
+   - Invalid Zone ID (must be 32-character hex string)
    - Incorrect API credentials
    - Bearer Token missing **Cache Purge** permission
-   - Rate limit exceeded (Free: 5 requests/minute)
+   - Rate limit exceeded
+
+### Tag/Prefix/Hostname Purging Fails
+
+**Problem:** Purge by tag, prefix, or hostname returns an error.
+
+**Solution:**
+1. These features require a Cloudflare Enterprise plan
+2. Check your Cloudflare plan supports the operation
+3. Verify the format is correct:
+   - Tags: No spaces (e.g., `node-123`)
+   - Prefixes: Full URLs (e.g., `https://example.com/blog/`)
+   - Hostnames: No protocol (e.g., `cdn.example.com`)
+
+### Auto-Purge Not Working
+
+**Problem:** Content changes don't trigger Cloudflare purge.
+
+**Solution:**
+1. Verify auto-purge is enabled at `/admin/config/cloudflare-purge/settings`
+2. Check entity types are selected
+3. Tag-based purging requires Enterprise plan
+4. If using queue, ensure cron is running: `drush cron`
+5. Enable detailed logging to debug
 
 ### Rate Limits
 
 Cloudflare enforces rate limits on purge requests:
 
-- **Free Plan**: 5 requests per minute
+- **Free Plan**: 1,000 API calls per day
 - **Pro Plan**: 500 requests per hour  
 - **Business Plan**: 10 requests per second
 - **Enterprise Plan**: Higher limits
@@ -368,6 +490,18 @@ Ensure your Bearer Token has the correct permission:
 3. Find your token and click **Edit**
 4. Verify: **Zone** » **Cache Purge** » **Purge** is enabled
 5. Verify the token is applied to your specific zone
+
+## Cloudflare API Limits
+
+| Limit Type | Value |
+|------------|-------|
+| URLs per request | 30 |
+| Cache tags per request | 30 |
+| Prefixes per request | 30 |
+| Hostnames per request | 30 |
+| API calls (Free tier) | 1,000/day |
+
+The module automatically batches larger requests when using Drush commands.
 
 ## API Documentation
 

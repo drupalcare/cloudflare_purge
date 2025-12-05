@@ -1,53 +1,101 @@
+# Cloudflare Purge configuration schema.
+
 cloudflare_purge.settings:
   type: config_object
   label: 'Cloudflare Purge settings'
   mapping:
-    # Authentication and storage method preferences.
+    # Authentication settings.
     auth_method:
       type: string
       label: 'Authentication method'
       constraints:
         Choice:
-          - bearer
-          - legacy
+          choices:
+            - bearer
+            - legacy
+
     storage_method:
       type: string
-      label: 'Storage method'
+      label: 'Credential storage method'
       constraints:
         Choice:
-          - plain
-          - key
+          choices:
+            - plain
+            - key
 
-    # Plain text storage fields.
+    # Plain text credentials.
     zone_id:
       type: string
-      label: 'Zone ID'
+      label: 'Cloudflare Zone ID'
+
     email:
       type: string
-      label: 'Email'
+      label: 'Cloudflare account email'
+
     authorization:
       type: string
-      label: 'Authorization (API Key)'
+      label: 'Cloudflare API Key'
+
     bearer_token:
       type: string
-      label: 'Bearer Token'
+      label: 'Cloudflare API Bearer Token'
 
-    # Key module storage fields.
+    # Key module references.
     zone_id_key:
       type: string
-      label: 'Zone ID (Key module)'
+      label: 'Zone ID key reference'
+
     email_key:
       type: string
-      label: 'Email (Key module)'
+      label: 'Email key reference'
+
     authorization_key:
       type: string
-      label: 'Authorization (Key module)'
+      label: 'API Key key reference'
+
     bearer_token_key:
       type: string
-      label: 'Bearer Token (Key module)'
+      label: 'Bearer Token key reference'
 
-    # Deprecated: Kept for backward compatibility during migration.
-    # Will be removed in a future version.
+    # Auto-purge settings.
+    auto_purge_enabled:
+      type: boolean
+      label: 'Enable automatic cache tag purging'
+
+    auto_purge_entity_types:
+      type: sequence
+      label: 'Entity types for automatic purging'
+      sequence:
+        type: string
+        label: 'Entity type ID'
+
+    auto_purge_use_queue:
+      type: boolean
+      label: 'Use queue for automatic purging'
+
+    tag_prefix:
+      type: string
+      label: 'Cache tag prefix'
+
+    # Rate limiting settings.
+    rate_limit_enabled:
+      type: boolean
+      label: 'Enable rate limiting'
+
+    rate_limit_per_minute:
+      type: integer
+      label: 'Maximum requests per minute'
+      constraints:
+        Range:
+          min: 1
+          max: 1000
+
+    # Logging settings.
+    logging_enabled:
+      type: boolean
+      label: 'Enable detailed logging'
+
+    # Legacy setting (deprecated, migrated in update hook).
     use_bearer_token:
       type: boolean
       label: 'Use Bearer Token (deprecated)'
