@@ -31,7 +31,7 @@ use Drupal\key\KeyRepositoryInterface;
  *
  * @package Drupal\cloudflare_purge
  */
-final class Purge {
+final class Purge implements PurgeInterface {
 
   use StringTranslationTrait;
 

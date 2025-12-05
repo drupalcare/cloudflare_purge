@@ -6,7 +6,7 @@ namespace Drupal\cloudflare_purge\Cache;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
-use Drupal\cloudflare_purge\Purge;
+use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
@@ -31,7 +31,7 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
   /**
    * Constructs a CloudflareCacheTagInvalidator.
    *
-   * @param \Drupal\cloudflare_purge\Purge $purgeService
+   * @param \Drupal\cloudflare_purge\PurgeInterface $purgeService
    *   The Cloudflare purge service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The config factory.
@@ -41,7 +41,7 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
    *   The queue factory.
    */
   public function __construct(
-    private readonly Purge $purgeService,
+    private readonly PurgeInterface $purgeService,
     private readonly ConfigFactoryInterface $configFactory,
     private readonly LoggerChannelInterface $logger,
     private readonly QueueFactory $queueFactory,

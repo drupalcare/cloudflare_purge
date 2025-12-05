@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
 use Drupal\cloudflare_purge\Form\CloudflarePurgeByUrl;
-use Drupal\cloudflare_purge\Purge;
+use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Tests\UnitTestCase;
@@ -155,7 +155,7 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
    *   The form instance.
    */
   protected function createForm(): CloudflarePurgeByUrl {
-    $purgeService = $this->createMock(Purge::class);
+    $purgeService = $this->createMock(PurgeInterface::class);
     $form = new CloudflarePurgeByUrl($purgeService);
     $form->setStringTranslation($this->getStringTranslationStub());
 

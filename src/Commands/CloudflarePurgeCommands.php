@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Commands;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
-use Drupal\cloudflare_purge\Purge;
+use Drupal\cloudflare_purge\PurgeInterface;
 use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -27,11 +27,11 @@ final class CloudflarePurgeCommands extends DrushCommands {
   /**
    * Constructs a CloudflarePurgeCommands object.
    *
-   * @param \Drupal\cloudflare_purge\Purge $purgeService
+   * @param \Drupal\cloudflare_purge\PurgeInterface $purgeService
    *   The Cloudflare purge service.
    */
   public function __construct(
-    private readonly Purge $purgeService,
+    private readonly PurgeInterface $purgeService,
   ) {
     parent::__construct();
   }

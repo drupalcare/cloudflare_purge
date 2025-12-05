@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Plugin\QueueWorker;
 
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
-use Drupal\cloudflare_purge\Purge;
+use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Queue\QueueFactory;
@@ -50,7 +50,7 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
    *   The plugin ID.
    * @param mixed $plugin_definition
    *   The plugin definition.
-   * @param \Drupal\cloudflare_purge\Purge $purgeService
+   * @param \Drupal\cloudflare_purge\PurgeInterface $purgeService
    *   The Cloudflare purge service.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger channel.
@@ -61,7 +61,7 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
     array $configuration,
     $plugin_id,
     $plugin_definition,
-    private readonly Purge $purgeService,
+    private readonly PurgeInterface $purgeService,
     private readonly LoggerChannelInterface $logger,
     private readonly QueueFactory $queueFactory,
   ) {
