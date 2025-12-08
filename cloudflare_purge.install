@@ -246,10 +246,10 @@ function cloudflare_purge_update_9001(): string {
 
     $config->save();
 
-    return t('Added auto-purge configuration settings.');
+    return (string) t('Added auto-purge configuration settings.');
   }
   catch (\Exception $e) {
-    return t('Error adding auto-purge settings: @message', ['@message' => $e->getMessage()]);
+    return (string) t('Error adding auto-purge settings: @message', ['@message' => $e->getMessage()]);
   }
 }
 
@@ -272,7 +272,7 @@ function cloudflare_purge_update_9002(): string {
       $config->clear('use_bearer_token');
       $config->save();
 
-      return t('Migrated use_bearer_token to auth_method: @method', ['@method' => $authMethod]);
+      return (string) t('Migrated use_bearer_token to auth_method: @method', ['@method' => $authMethod]);
     }
 
     // Ensure auth_method exists.
@@ -281,10 +281,10 @@ function cloudflare_purge_update_9002(): string {
       $config->save();
     }
 
-    return t('Authentication method configuration verified.');
+    return (string) t('Authentication method configuration verified.');
   }
   catch (\Exception $e) {
-    return t('Error migrating authentication settings: @message', ['@message' => $e->getMessage()]);
+    return (string) t('Error migrating authentication settings: @message', ['@message' => $e->getMessage()]);
   }
 }
 
@@ -303,12 +303,12 @@ function cloudflare_purge_update_9003(): string {
       $config->set('storage_method', $storageMethod);
       $config->save();
 
-      return t('Added storage_method configuration: @method', ['@method' => $storageMethod]);
+      return (string) t('Added storage_method configuration: @method', ['@method' => $storageMethod]);
     }
 
-    return t('Storage method configuration already exists.');
+    return (string) t('Storage method configuration already exists.');
   }
   catch (\Exception $e) {
-    return t('Error adding storage method: @message', ['@message' => $e->getMessage()]);
+    return (string) t('Error adding storage method: @message', ['@message' => $e->getMessage()]);
   }
 }
