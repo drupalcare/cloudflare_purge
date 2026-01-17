@@ -600,7 +600,7 @@ final class Purge implements PurgeInterface {
    *
    * @note MULTI-SERVER LIMITATION: This rate limiting uses Drupal's State API,
    *   which stores data per-server. In load-balanced environments, each server
-   *   maintains its own counter, potentially allowing `maxPerMinute * numServers`
+   *   maintains its counter, potentially allowing `maxPerMinute * numServers`
    *   requests per minute. For strict rate limiting across multiple servers,
    *   consider using a shared storage like Redis or database-backed counters.
    *   Drush commands bypass this rate limiting by design (trusted admin use).

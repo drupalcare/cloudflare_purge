@@ -178,7 +178,8 @@ final class CloudflarePurgeByPrefix extends FormBase {
       $this->purgeService->purgeByPrefixes($prefixes);
     }
     catch (\Exception $e) {
-      // Log full details but show generic message to user to prevent information disclosure.
+      // Log full details but show generic message to user to prevent
+      // information disclosure.
       $this->getLogger('cloudflare_purge')->error('Exception during prefix purge: @message', [
         '@message' => $e->getMessage(),
       ]);

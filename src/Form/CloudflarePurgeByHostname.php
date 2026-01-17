@@ -190,7 +190,8 @@ final class CloudflarePurgeByHostname extends FormBase {
       $this->purgeService->purgeByHostnames($hostnames);
     }
     catch (\Exception $e) {
-      // Log full details but show generic message to user to prevent information disclosure.
+      // Log full details but show generic message to user to prevent
+      // information disclosure.
       $this->getLogger('cloudflare_purge')->error('Exception during hostname purge: @message', [
         '@message' => $e->getMessage(),
       ]);

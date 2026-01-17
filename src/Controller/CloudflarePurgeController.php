@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Controller;
 
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
@@ -61,7 +62,7 @@ final class CloudflarePurgeController extends ControllerBase {
   public function history(): array {
     // Defense-in-depth: verify permission even though routing should handle it.
     if (!$this->currentUser()->hasPermission('view cloudflare purge history')) {
-      throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
+      throw new AccessDeniedHttpException();
     }
 
     $build = [];

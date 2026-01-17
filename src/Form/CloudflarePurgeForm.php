@@ -217,9 +217,9 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     $form['layout']['left']['plain_text_warning'] = [
       '#type' => 'markup',
       '#markup' => '<div class="messages messages--warning">' .
-        '<strong>' . $this->t('Security Warning:') . '</strong> ' .
-        $this->t('Plain text storage saves credentials in the database. For production environments, use settings.php override or the Key module for secure storage.') .
-        '</div>',
+      '<strong>' . $this->t('Security Warning:') . '</strong> ' .
+      $this->t('Plain text storage saves credentials in the database. For production environments, use settings.php override or the Key module for secure storage.') .
+      '</div>',
       '#states' => [
         'visible' => [
           ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
