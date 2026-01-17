@@ -171,12 +171,11 @@ final class CloudflarePurgeByUrl extends FormBase {
       $this->purgeService->purgeByUrls($urls);
     }
     catch (\Exception $e) {
-      $this->messenger()->addError($this->t('An unexpected error occurred: @message', [
-        '@message' => $e->getMessage(),
-      ]));
+      // Log full details but show generic message to user to prevent information disclosure.
       $this->getLogger('cloudflare_purge')->error('Exception during URL purge: @message', [
         '@message' => $e->getMessage(),
       ]);
+      $this->messenger()->addError($this->t('An unexpected error occurred while purging URLs. Please check the logs for details.'));
     }
   }
 

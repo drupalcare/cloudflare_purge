@@ -19,7 +19,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * specific URL path. For example, purging "https://example.com/blog/"
  * will invalidate all cached blog posts.
  *
- * Note: Requires Enterprise plan.
+ * Available on all Cloudflare plans (Free tier: 5 requests/minute).
  *
  * @package Drupal\cloudflare_purge\Form
  */
@@ -67,7 +67,7 @@ final class CloudflarePurgeByPrefix extends FormBase {
 
     $form['note'] = [
       '#type' => 'markup',
-      '#markup' => '<div class="messages messages--warning"><strong>' . $this->t('Note:') . '</strong> ' . $this->t('Prefix purging requires a Cloudflare Enterprise plan.') . '</div>',
+      '#markup' => '<div class="messages messages--info"><strong>' . $this->t('Note:') . '</strong> ' . $this->t('Prefix purging is available on all Cloudflare plans. Free tier: 5 requests/minute, max 100 prefixes per request.') . '</div>',
     ];
 
     $form['prefixes'] = [
@@ -178,12 +178,11 @@ final class CloudflarePurgeByPrefix extends FormBase {
       $this->purgeService->purgeByPrefixes($prefixes);
     }
     catch (\Exception $e) {
-      $this->messenger()->addError($this->t('An unexpected error occurred: @message', [
-        '@message' => $e->getMessage(),
-      ]));
+      // Log full details but show generic message to user to prevent information disclosure.
       $this->getLogger('cloudflare_purge')->error('Exception during prefix purge: @message', [
         '@message' => $e->getMessage(),
       ]);
+      $this->messenger()->addError($this->t('An unexpected error occurred while purging by prefix. Please check the logs for details.'));
     }
   }
 

@@ -28,15 +28,15 @@ Use this module when you need to purge Cloudflare cache and:
 - You need a simple, lightweight solution without additional dependencies
 - You want command-line control via Drush commands
 - You can't use the full Purge module ecosystem
-- You want automatic cache invalidation when Drupal content changes (Enterprise)
+- You want automatic cache invalidation when Drupal content changes
 
 ## Features
 
 - **Purge Everything** - Clear all cached content with confirmation dialog
 - **Purge by URL** - Clear one or more specific URLs (up to 30 per request)
-- **Purge by Cache Tag** - Clear content by cache tags (Enterprise plan required)
-- **Purge by Prefix** - Clear all content under URL prefixes (Enterprise plan required)
-- **Purge by Hostname** - Clear all content for specific hostnames (Enterprise plan required)
+- **Purge by Cache Tag** - Clear content by cache tags (all plans)
+- **Purge by Prefix** - Clear all content under URL prefixes (all plans)
+- **Purge by Hostname** - Clear all content for specific hostnames (all plans)
 - **Automatic Cache Tag Purging** - Automatically purge Cloudflare when Drupal cache tags are invalidated
 - **Queue-Based Processing** - Queue purge requests for batch processing during cron
 - **Purge History** - View recent purge operations from the admin UI
@@ -65,7 +65,7 @@ Use this module when you need to purge Cloudflare cache and:
 ### Optional
 
 - **[Key Module](https://www.drupal.org/project/key)** - For enhanced credential security (recommended for production)
-- **Cloudflare Enterprise Plan** - Required for tag, prefix, and hostname purging
+- **Paid Cloudflare Plan** - For higher rate limits on tag, prefix, and hostname purging (optional)
 
 ## Installation
 
@@ -229,7 +229,7 @@ Configure automatic cache purging when Drupal cache tags are invalidated:
 - **Rate limiting** - Limit requests per minute to avoid API limits
 - **Detailed logging** - Enable for debugging
 
-**Note:** Automatic tag-based purging requires a Cloudflare Enterprise plan.
+**Note:** Free tier has rate limits of 5 requests/minute for tag-based purging. Consider using queue processing for high-traffic sites.
 
 ## Usage
 
@@ -242,9 +242,9 @@ Navigate to **Configuration** » **Cloudflare Purge**:
 | Credentials | `/admin/config/cloudflare-purge/credentials` | Configure API credentials |
 | Auto-Purge Settings | `/admin/config/cloudflare-purge/settings` | Configure automatic purging |
 | Purge by URL | `/admin/config/cloudflare-purge/purge-url` | Purge 1-30 URLs |
-| Purge by Cache Tag | `/admin/config/cloudflare-purge/purge-tag` | Purge by cache tags (Enterprise) |
-| Purge by Prefix | `/admin/config/cloudflare-purge/purge-prefix` | Purge by URL prefix (Enterprise) |
-| Purge by Hostname | `/admin/config/cloudflare-purge/purge-hostname` | Purge by hostname (Enterprise) |
+| Purge by Cache Tag | `/admin/config/cloudflare-purge/purge-tag` | Purge by cache tags (all plans) |
+| Purge by Prefix | `/admin/config/cloudflare-purge/purge-prefix` | Purge by URL prefix (all plans) |
+| Purge by Hostname | `/admin/config/cloudflare-purge/purge-hostname` | Purge by hostname (all plans) |
 | Purge Everything | `/admin/config/cloudflare-purge/purge-everything` | Clear entire cache |
 | Purge History | `/admin/config/cloudflare-purge/history` | View recent operations |
 
@@ -291,7 +291,7 @@ drush cfpu "https://example.com/a,https://example.com/b"
 
 Purges specific URLs from Cloudflare cache (up to 30 per request, automatically batched).
 
-### Purge by Cache Tag (Enterprise)
+### Purge by Cache Tag (All Plans)
 
 ```bash
 # Single tag
@@ -306,7 +306,7 @@ drush cfpt "product-1,product-2,product-3"
 
 Purges content by cache tags (up to 30 per request).
 
-### Purge by Prefix (Enterprise)
+### Purge by Prefix (All Plans)
 
 ```bash
 # Single prefix
@@ -321,7 +321,7 @@ drush cfpp https://example.com/blog/
 
 Purges all content under URL prefixes (up to 30 per request).
 
-### Purge by Hostname (Enterprise)
+### Purge by Hostname (All Plans)
 
 ```bash
 # Single hostname
@@ -452,9 +452,8 @@ You have partial credentials in `settings.php` but not a complete set. Either:
 **Problem:** Purge by tag, prefix, or hostname returns an error.
 
 **Solution:**
-1. These features require a Cloudflare Enterprise plan
-2. Check your Cloudflare plan supports the operation
-3. Verify the format is correct:
+1. Check you haven't exceeded rate limits (Free: 5 requests/minute)
+2. Verify the format is correct:
    - Tags: No spaces (e.g., `node-123`)
    - Prefixes: Full URLs (e.g., `https://example.com/blog/`)
    - Hostnames: No protocol (e.g., `cdn.example.com`)
@@ -466,20 +465,28 @@ You have partial credentials in `settings.php` but not a complete set. Either:
 **Solution:**
 1. Verify auto-purge is enabled at `/admin/config/cloudflare-purge/settings`
 2. Check entity types are selected
-3. Tag-based purging requires Enterprise plan
+3. Free tier has rate limits (5 requests/minute) - use queue processing
 4. If using queue, ensure cron is running: `drush cron`
 5. Enable detailed logging to debug
 
 ### Rate Limits
 
-Cloudflare enforces rate limits on purge requests:
+Cloudflare enforces rate limits on purge requests (tag/prefix/hostname/purge everything):
 
-- **Free Plan**: 1,000 API calls per day
-- **Pro Plan**: 500 requests per hour  
-- **Business Plan**: 10 requests per second
-- **Enterprise Plan**: Higher limits
+| Plan | Requests | Bucket Size | Max Ops/Request |
+|------|----------|-------------|-----------------|
+| Free | 5/minute | 25 | 100 |
+| Pro | 5/second | 25 | 100 |
+| Business | 10/second | 50 | 100 |
+| Enterprise | 50/second | 500 | 100 |
+
+**Note:** As of April 2025, Cloudflare made all purge methods available on all plans including Free.
+
+**Important:** Rate limits are subject to change. For the latest information, see [Cloudflare's official documentation](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits). *(Last verified: January 2026)*
 
 If you exceed the rate limit, wait and try again.
+
+**Module Rate Limiting Note:** The module's built-in rate limiting uses Drupal's State API which is per-server. In load-balanced environments, each server maintains its own counter. For strict rate limiting across multiple servers, consider using a shared storage solution like Redis.
 
 ### Bearer Token Permissions
 
@@ -507,6 +514,7 @@ The module automatically batches larger requests when using Drush commands.
 
 For more information about Cloudflare's Purge Cache API:
 
+- [**Cloudflare Purge Availability & Limits**](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits) - Current rate limits by plan
 - [Cloudflare API: Purge Cache](https://developers.cloudflare.com/api/operations/zone-purge)
 - [Getting Started with Cloudflare API](https://developers.cloudflare.com/fundamentals/api/)
 - [Cache Purge Documentation](https://developers.cloudflare.com/cache/how-to/purge-cache/)

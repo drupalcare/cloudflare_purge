@@ -213,6 +213,20 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '#attributes' => ['class' => ['cloudflare-purge-radios']],
     ];
 
+    // Security warning for plain text storage.
+    $form['layout']['left']['plain_text_warning'] = [
+      '#type' => 'markup',
+      '#markup' => '<div class="messages messages--warning">' .
+        '<strong>' . $this->t('Security Warning:') . '</strong> ' .
+        $this->t('Plain text storage saves credentials in the database. For production environments, use settings.php override or the Key module for secure storage.') .
+        '</div>',
+      '#states' => [
+        'visible' => [
+          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+        ],
+      ],
+    ];
+
     if (!$this->moduleHandler->moduleExists('key')) {
       $form['layout']['left']['key_module_notice'] = [
         '#markup' => '<div class="cloudflare-purge-notice">' .
@@ -382,6 +396,30 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     }
 
     return parent::buildForm($form, $form_state);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    parent::validateForm($form, $form_state);
+
+    // Skip validation if settings.php override is in place.
+    if ($this->hasSettingsOverride()) {
+      return;
+    }
+
+    $storage_method = $form_state->getValue('storage_method');
+
+    // Validate Zone ID format (only for plain text storage).
+    if ($storage_method === self::STORAGE_PLAIN) {
+      $zone_id = $form_state->getValue('zone_id');
+      if (is_string($zone_id) && $zone_id !== '') {
+        if (!preg_match('/^[a-f0-9]{32}$/i', $zone_id)) {
+          $form_state->setErrorByName('zone_id', $this->t('Invalid Zone ID format. Zone ID should be a 32-character hexadecimal string. You can find it in your Cloudflare dashboard.'));
+        }
+      }
+    }
   }
 
   /**

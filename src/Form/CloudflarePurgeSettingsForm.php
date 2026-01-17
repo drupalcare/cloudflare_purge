@@ -87,7 +87,7 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     $form['auto_purge']['auto_purge_enabled'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable automatic cache tag purging'),
-      '#description' => $this->t('When enabled, Cloudflare cache will be automatically purged when Drupal cache tags are invalidated. This requires adding Cache-Tag headers to your responses and a Cloudflare Enterprise plan for tag-based purging.'),
+      '#description' => $this->t('When enabled, Cloudflare cache will be automatically purged when Drupal cache tags are invalidated. This requires adding Cache-Tag headers to your responses. Free tier: 5 requests/minute, consider queue processing for high-traffic sites.'),
       '#default_value' => (bool) ($config->get('auto_purge_enabled') ?? FALSE),
     ];
 
@@ -150,7 +150,7 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     $form['rate_limit']['rate_limit_per_minute'] = [
       '#type' => 'number',
       '#title' => $this->t('Maximum requests per minute'),
-      '#description' => $this->t('Cloudflare free tier allows 1000 API calls per day. Enterprise plans have higher limits.'),
+      '#description' => $this->t('Cloudflare free tier: 1000 API calls/day, 5 requests/minute for tag/prefix/hostname purges. Paid plans have higher limits.'),
       '#default_value' => (int) ($config->get('rate_limit_per_minute') ?? 60),
       '#min' => 1,
       '#max' => 1000,
@@ -189,7 +189,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
       '<pre>Cache-Tag: node-123, taxonomy_term-45, user-1</pre>' .
       '<h4>' . $this->t('Requirements') . '</h4>' .
       '<ul>' .
-      '<li>' . $this->t('Tag-based purging requires a Cloudflare Enterprise plan.') . '</li>' .
+      '<li>' . $this->t('Tag-based purging is available on all Cloudflare plans (since April 2025).') . '</li>' .
+      '<li>' . $this->t('Free tier has rate limits: 5 requests/minute, max 100 tags per request.') . '</li>' .
       '<li>' . $this->t('Ensure your Cloudflare cache is configured to cache responses.') . '</li>' .
       '<li>' . $this->t('Configure appropriate Page Rules in Cloudflare if needed.') . '</li>' .
       '</ul>',

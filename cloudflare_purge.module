@@ -30,9 +30,9 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
       $output .= '<ul>';
       $output .= '<li>' . t('<strong>Purge Everything:</strong> Clear the entire Cloudflare cache for your zone.') . '</li>';
       $output .= '<li>' . t('<strong>Purge by URL:</strong> Purge specific URLs (up to 30 per request).') . '</li>';
-      $output .= '<li>' . t('<strong>Purge by Cache Tag:</strong> Purge content by cache tags (Enterprise plan required).') . '</li>';
-      $output .= '<li>' . t('<strong>Purge by Prefix:</strong> Purge all content under a URL prefix (Enterprise plan required).') . '</li>';
-      $output .= '<li>' . t('<strong>Purge by Hostname:</strong> Purge all content for specific hostnames (Enterprise plan required).') . '</li>';
+      $output .= '<li>' . t('<strong>Purge by Cache Tag:</strong> Purge content by cache tags (all plans).') . '</li>';
+      $output .= '<li>' . t('<strong>Purge by Prefix:</strong> Purge all content under a URL prefix (all plans).') . '</li>';
+      $output .= '<li>' . t('<strong>Purge by Hostname:</strong> Purge all content for specific hostnames (all plans).') . '</li>';
       $output .= '<li>' . t('<strong>Automatic Purging:</strong> Automatically purge Cloudflare when Drupal cache tags are invalidated.') . '</li>';
       $output .= '<li>' . t('<strong>Queue Support:</strong> Queue purge requests for batch processing during cron.') . '</li>';
       $output .= '<li>' . t('<strong>Drush Commands:</strong> Full Drush support for all purge operations.') . '</li>';
@@ -73,13 +73,13 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
       return '<p>' . t('Enter URLs to purge from the Cloudflare cache. URLs must be fully qualified including the scheme (https://).') . '</p>';
 
     case 'cloudflare_purge.purge_by_tag':
-      return '<p>' . t('Enter cache tags to purge. This feature requires a Cloudflare Enterprise plan with Cache-Tag header support.') . '</p>';
+      return '<p>' . t('Enter cache tags to purge. Available on all Cloudflare plans. Free tier: 5 requests/minute, max 100 tags/request.') . '</p>';
 
     case 'cloudflare_purge.purge_by_prefix':
-      return '<p>' . t('Enter URL prefixes to purge all content under those paths. This feature requires a Cloudflare Enterprise plan.') . '</p>';
+      return '<p>' . t('Enter URL prefixes to purge all content under those paths. Available on all Cloudflare plans.') . '</p>';
 
     case 'cloudflare_purge.purge_by_hostname':
-      return '<p>' . t('Enter hostnames to purge all cached content for those domains. This feature requires a Cloudflare Enterprise plan.') . '</p>';
+      return '<p>' . t('Enter hostnames to purge all cached content for those domains. Available on all Cloudflare plans.') . '</p>';
 
     default:
       return '';

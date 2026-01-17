@@ -597,6 +597,13 @@ final class Purge implements PurgeInterface {
    *
    * @return \Drupal\cloudflare_purge\CloudflarePurgeResult|null
    *   Returns a rate limit error result if limit exceeded, NULL if OK.
+   *
+   * @note MULTI-SERVER LIMITATION: This rate limiting uses Drupal's State API,
+   *   which stores data per-server. In load-balanced environments, each server
+   *   maintains its own counter, potentially allowing `maxPerMinute * numServers`
+   *   requests per minute. For strict rate limiting across multiple servers,
+   *   consider using a shared storage like Redis or database-backed counters.
+   *   Drush commands bypass this rate limiting by design (trusted admin use).
    */
   private function checkRateLimit(bool $showMessage): ?CloudflarePurgeResult {
     // Check if rate limiting is enabled.

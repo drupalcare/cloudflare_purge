@@ -18,7 +18,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * For example, tag all product images with "product-images" and purge
  * them all at once when the product catalog updates.
  *
- * Note: Requires Enterprise plan or Cache-Tag header support.
+ * Available on all Cloudflare plans (Free tier: 5 requests/minute).
  *
  * @package Drupal\cloudflare_purge\Form
  */
@@ -182,12 +182,11 @@ final class CloudflarePurgeByTag extends FormBase {
       $this->purgeService->purgeByTags($tags);
     }
     catch (\Exception $e) {
-      $this->messenger()->addError($this->t('An unexpected error occurred: @message', [
-        '@message' => $e->getMessage(),
-      ]));
+      // Log full details but show generic message to user to prevent information disclosure.
       $this->getLogger('cloudflare_purge')->error('Exception during tag purge: @message', [
         '@message' => $e->getMessage(),
       ]);
+      $this->messenger()->addError($this->t('An unexpected error occurred while purging cache tags. Please check the logs for details.'));
     }
   }
 

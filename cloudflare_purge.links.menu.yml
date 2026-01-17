@@ -35,7 +35,7 @@ cloudflare_purge.purge_by_url:
 # Purge by cache tag.
 cloudflare_purge.purge_by_tag:
   title: 'Purge by Cache Tag'
-  description: 'Purge content by cache tags (Enterprise).'
+  description: 'Purge content by cache tags.'
   route_name: cloudflare_purge.purge_by_tag
   parent: cloudflare_purge.admin
   weight: 30
@@ -43,7 +43,7 @@ cloudflare_purge.purge_by_tag:
 # Purge by prefix.
 cloudflare_purge.purge_by_prefix:
   title: 'Purge by Prefix'
-  description: 'Purge all content under URL prefixes (Enterprise).'
+  description: 'Purge all content under URL prefixes.'
   route_name: cloudflare_purge.purge_by_prefix
   parent: cloudflare_purge.admin
   weight: 40
@@ -51,7 +51,7 @@ cloudflare_purge.purge_by_prefix:
 # Purge by hostname.
 cloudflare_purge.purge_by_hostname:
   title: 'Purge by Hostname'
-  description: 'Purge all content for hostnames (Enterprise).'
+  description: 'Purge all content for hostnames.'
   route_name: cloudflare_purge.purge_by_hostname
   parent: cloudflare_purge.admin
   weight: 50

@@ -54,8 +54,16 @@ final class CloudflarePurgeController extends ControllerBase {
    *
    * @return array<string, mixed>
    *   A render array for the history page.
+   *
+   * @throws \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException
+   *   If the user doesn't have the required permission.
    */
   public function history(): array {
+    // Defense-in-depth: verify permission even though routing should handle it.
+    if (!$this->currentUser()->hasPermission('view cloudflare purge history')) {
+      throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
+    }
+
     $build = [];
 
     $build['description'] = [

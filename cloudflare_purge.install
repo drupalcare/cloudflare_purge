@@ -126,7 +126,7 @@ function cloudflare_purge_requirements(string $phase): array {
       $requirements['cloudflare_purge_auto'] = [
         'title' => t('Cloudflare Purge - Auto Purge'),
         'value' => t('Enabled'),
-        'description' => t('Automatic cache tag purging is enabled. Note: Tag-based purging requires a Cloudflare Enterprise plan.'),
+        'description' => t('Automatic cache tag purging is enabled. Free tier has rate limits (5 requests/minute). Consider queue processing for high-traffic sites.'),
         'severity' => REQUIREMENT_INFO,
       ];
     }

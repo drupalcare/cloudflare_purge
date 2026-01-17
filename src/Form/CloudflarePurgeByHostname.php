@@ -18,7 +18,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * This is useful for multi-domain sites or when you need to purge all
  * content for a subdomain like images.example.com.
  *
- * Note: Requires Enterprise plan.
+ * Available on all Cloudflare plans (Free tier: 5 requests/minute).
  *
  * @package Drupal\cloudflare_purge\Form
  */
@@ -73,7 +73,7 @@ final class CloudflarePurgeByHostname extends FormBase {
       '#type' => 'markup',
       '#markup' => '<div class="messages messages--warning">' .
       '<strong>' . $this->t('Warning:') . '</strong> ' .
-      $this->t('Purging by hostname will invalidate ALL cached content for that hostname. This can significantly increase load on your origin server. This feature requires a Cloudflare Enterprise plan.') .
+      $this->t('Purging by hostname will invalidate ALL cached content for that hostname. This can significantly increase load on your origin server. Available on all Cloudflare plans (Free tier: 5 requests/minute).') .
       '</div>',
     ];
 
@@ -190,12 +190,11 @@ final class CloudflarePurgeByHostname extends FormBase {
       $this->purgeService->purgeByHostnames($hostnames);
     }
     catch (\Exception $e) {
-      $this->messenger()->addError($this->t('An unexpected error occurred: @message', [
-        '@message' => $e->getMessage(),
-      ]));
+      // Log full details but show generic message to user to prevent information disclosure.
       $this->getLogger('cloudflare_purge')->error('Exception during hostname purge: @message', [
         '@message' => $e->getMessage(),
       ]);
+      $this->messenger()->addError($this->t('An unexpected error occurred while purging hostnames. Please check the logs for details.'));
     }
   }
 
