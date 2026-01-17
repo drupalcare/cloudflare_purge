@@ -386,6 +386,28 @@
   line-height: 1.5;
 }
 
+/* Override message wrapper - prevent flexbox breaking content (Gin theme fix) */
+.cloudflare-purge-override-message {
+  flex: 1;
+  width: 100%;
+}
+
+.cloudflare-purge-override-message p {
+  margin: 0 0 0.75rem 0;
+}
+
+.cloudflare-purge-override-message p:last-child {
+  margin-bottom: 0;
+}
+
+.cloudflare-purge-override-message code {
+  background-color: rgba(0, 0, 0, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 0.85em;
+}
+
 /* ========== SETTINGS FORM SPECIFICS ========== */
 
 /* Checkboxes in settings */

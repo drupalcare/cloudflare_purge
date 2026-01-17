@@ -517,11 +517,15 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '#attributes' => ['class' => ['messages', 'messages--warning']],
     ];
 
+    // Wrap content in a div to prevent flexbox layout issues (e.g., Gin theme).
     $form['override_message']['content'] = [
-      '#markup' => $this->t(
-        '<strong>Configuration Override Detected</strong><br>Your Cloudflare credentials are currently managed via <code>settings.php</code>. This is the recommended approach for production environments.<br><br><strong>Detected configuration:</strong> @auth_type<br><br>To modify credentials, update the <code>$settings["cloudflare_purge_credentials"]</code> array in your <code>settings.php</code> file.<br><br>All database-stored credentials have been disabled and will be cleaned on form submission for security.',
-        ['@auth_type' => $auth_type]
-      ),
+      '#markup' => '<div class="cloudflare-purge-override-message">' .
+      '<p><strong>' . $this->t('Configuration Override Detected') . '</strong></p>' .
+      '<p>' . $this->t('Your Cloudflare credentials are currently managed via <code>settings.php</code>. This is the recommended approach for production environments.') . '</p>' .
+      '<p><strong>' . $this->t('Detected configuration:') . '</strong> ' . $auth_type . '</p>' .
+      '<p>' . $this->t('To modify credentials, update the <code>$settings["cloudflare_purge_credentials"]</code> array in your <code>settings.php</code> file.') . '</p>' .
+      '<p>' . $this->t('All database-stored credentials have been disabled and will be cleaned on form submission for security.') . '</p>' .
+      '</div>',
     ];
 
     return $form;
