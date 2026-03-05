@@ -20,6 +20,7 @@ services:
       - '@messenger'
       - '@cloudflare_purge.api'
       - '@module_handler'
+      - '@state'
       - '@?key.repository'
 
   # Cache tag invalidator for automatic Cloudflare purging.

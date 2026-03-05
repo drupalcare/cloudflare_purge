@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.0/phpunit.xsd"
          bootstrap="tests/bootstrap.php"
-         colors="true"
-         beStrictAboutTestsThatDoNotTestAnything="false"
-         beStrictAboutOutputDuringTests="true">
+         colors="true">
   <php>
     <env name="SIMPLETEST_BASE_URL" value="http://localhost"/>
     <env name="SIMPLETEST_DB" value="mysql://user:pass@localhost/dbname"/>
@@ -14,9 +12,9 @@
       <directory>./tests/src/Unit</directory>
     </testsuite>
   </testsuites>
-  <coverage>
+  <source>
     <include>
       <directory suffix=".php">./src</directory>
     </include>
-  </coverage>
+  </source>
 </phpunit>

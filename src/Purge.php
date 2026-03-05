@@ -50,13 +50,6 @@ final class Purge implements PurgeInterface {
   private const RATE_LIMIT_STATE_KEY = 'cloudflare_purge.rate_limit';
 
   /**
-   * The state service.
-   *
-   * @var \Drupal\Core\State\StateInterface|null
-   */
-  private ?StateInterface $state = NULL;
-
-  /**
    * Constructs a Purge service object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
@@ -69,6 +62,8 @@ final class Purge implements PurgeInterface {
    *   The Cloudflare Purge API service.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
    *   The module handler service.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   The state service for rate limit tracking.
    * @param \Drupal\key\KeyRepositoryInterface|null $keyRepository
    *   The Key repository service (optional).
    */
@@ -78,21 +73,9 @@ final class Purge implements PurgeInterface {
     private readonly MessengerInterface $messenger,
     private readonly CloudflarePurgeApi $cloudflarePurgeApi,
     private readonly ModuleHandlerInterface $moduleHandler,
+    private readonly StateInterface $state,
     private readonly ?KeyRepositoryInterface $keyRepository = NULL,
   ) {}
-
-  /**
-   * Sets the state service for rate limiting.
-   *
-   * @param \Drupal\Core\State\StateInterface $state
-   *   The state service.
-   *
-   * @return $this
-   */
-  public function setState(StateInterface $state): static {
-    $this->state = $state;
-    return $this;
-  }
 
   /**
    * Purges everything from the Cloudflare cache.
@@ -666,16 +649,6 @@ final class Purge implements PurgeInterface {
   private function getRateLimitData(): array {
     $default = ['minute' => 0, 'count' => 0];
 
-    if ($this->state === NULL) {
-      // Try to get state from container if not injected.
-      try {
-        $this->state = \Drupal::state();
-      }
-      catch (\Exception) {
-        return $default;
-      }
-    }
-
     $data = $this->state->get(self::RATE_LIMIT_STATE_KEY, $default);
 
     if (!is_array($data) || !isset($data['minute']) || !isset($data['count'])) {
@@ -695,15 +668,6 @@ final class Purge implements PurgeInterface {
    *   The rate limit data to save.
    */
   private function setRateLimitData(array $data): void {
-    if ($this->state === NULL) {
-      try {
-        $this->state = \Drupal::state();
-      }
-      catch (\Exception) {
-        return;
-      }
-    }
-
     $this->state->set(self::RATE_LIMIT_STATE_KEY, $data);
   }
 

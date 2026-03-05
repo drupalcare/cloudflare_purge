@@ -8,14 +8,15 @@ use Drupal\cloudflare_purge\CloudflarePurgeApi;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Tests for CloudflarePurgeApi service.
  *
  * @group cloudflare_purge
- * @coversDefaultClass \Drupal\cloudflare_purge\CloudflarePurgeApi
  */
+#[CoversClass(CloudflarePurgeApi::class)]
 class CloudflarePurgeApiTest extends TestCase {
 
   /**
@@ -25,8 +26,6 @@ class CloudflarePurgeApiTest extends TestCase {
 
   /**
    * Test purge everything with Bearer Token.
-   *
-   * @covers ::purgeEverything
    */
   public function testPurgeEverythingWithBearerToken(): void {
     $httpClient = $this->createMock(ClientInterface::class);
@@ -57,8 +56,6 @@ class CloudflarePurgeApiTest extends TestCase {
 
   /**
    * Test purge everything with legacy API Key.
-   *
-   * @covers ::purgeEverything
    */
   public function testPurgeEverythingWithApiKey(): void {
     $httpClient = $this->createMock(ClientInterface::class);
@@ -89,8 +86,6 @@ class CloudflarePurgeApiTest extends TestCase {
 
   /**
    * Test purge by URLs.
-   *
-   * @covers ::purgeByUrls
    */
   public function testPurgeByUrls(): void {
     $httpClient = $this->createMock(ClientInterface::class);
@@ -126,8 +121,6 @@ class CloudflarePurgeApiTest extends TestCase {
 
   /**
    * Test purge by tags.
-   *
-   * @covers ::purgeByTags
    */
   public function testPurgeByTags(): void {
     $httpClient = $this->createMock(ClientInterface::class);
@@ -163,8 +156,6 @@ class CloudflarePurgeApiTest extends TestCase {
 
   /**
    * Test invalid zone ID format.
-   *
-   * @covers ::purgeEverything
    */
   public function testInvalidZoneIdFormat(): void {
     $httpClient = $this->createMock(ClientInterface::class);
@@ -182,8 +173,6 @@ class CloudflarePurgeApiTest extends TestCase {
 
   /**
    * Test empty URLs returns error.
-   *
-   * @covers ::purgeByUrls
    */
   public function testEmptyUrlsReturnsError(): void {
     $httpClient = $this->createMock(ClientInterface::class);

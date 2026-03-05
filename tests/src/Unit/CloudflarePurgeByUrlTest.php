@@ -9,19 +9,18 @@ use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
  * Tests for CloudflarePurgeByUrl form.
  *
  * @group cloudflare_purge
- * @coversDefaultClass \Drupal\cloudflare_purge\Form\CloudflarePurgeByUrl
  */
+#[CoversClass(CloudflarePurgeByUrl::class)]
 class CloudflarePurgeByUrlTest extends UnitTestCase {
 
   /**
    * Test form ID.
-   *
-   * @covers ::getFormId
    */
   public function testGetFormId(): void {
     $form = $this->createForm();
@@ -30,8 +29,6 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
 
   /**
    * Test form validation with valid URLs.
-   *
-   * @covers ::validateForm
    */
   public function testValidateFormWithValidUrls(): void {
     $form = $this->createForm();
@@ -56,8 +53,6 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
 
   /**
    * Test form validation with invalid URL.
-   *
-   * @covers ::validateForm
    */
   public function testValidateFormWithInvalidUrl(): void {
     $form = $this->createForm();
@@ -78,8 +73,6 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
 
   /**
    * Test form validation with relative URL (should fail).
-   *
-   * @covers ::validateForm
    */
   public function testValidateFormWithRelativeUrl(): void {
     $form = $this->createForm();
@@ -100,8 +93,6 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
 
   /**
    * Test form validation with empty input.
-   *
-   * @covers ::validateForm
    */
   public function testValidateFormWithEmptyInput(): void {
     $form = $this->createForm();
@@ -122,8 +113,6 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
 
   /**
    * Test form validation with too many URLs.
-   *
-   * @covers ::validateForm
    */
   public function testValidateFormWithTooManyUrls(): void {
     $form = $this->createForm();
