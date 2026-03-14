@@ -150,40 +150,38 @@ function cloudflare_purge_requirements(string $phase): array {
  */
 function cloudflare_purge_install(): void {
   try {
-    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+    $configFactory = \Drupal::configFactory();
     $moduleHandler = \Drupal::moduleHandler();
 
-    // Set default authentication method.
-    $config->set('auth_method', 'bearer');
+    // Config is in config/optional so it may not exist yet if the module
+    // was installed via an install profile that already provided the config.
+    // Ensure defaults are present without overwriting existing values.
+    $config = $configFactory->getEditable('cloudflare_purge.settings');
 
-    // Set storage method based on Key module availability.
-    if ($moduleHandler->moduleExists('key')) {
-      $config->set('storage_method', 'key');
-    }
-    else {
-      $config->set('storage_method', 'plain');
-    }
-
-    // Set default entity types for auto-purge.
-    $config->set('auto_purge_entity_types', ['node', 'taxonomy_term', 'media']);
-
-    // Ensure all boolean settings default to FALSE.
-    $booleanSettings = [
-      'auto_purge_enabled',
-      'auto_purge_use_queue',
-      'rate_limit_enabled',
-      'logging_enabled',
+    $defaults = [
+      'auth_method' => 'bearer',
+      'storage_method' => $moduleHandler->moduleExists('key') ? 'key' : 'plain',
+      'zone_id' => '',
+      'email' => '',
+      'authorization' => '',
+      'bearer_token' => '',
+      'zone_id_key' => '',
+      'email_key' => '',
+      'authorization_key' => '',
+      'bearer_token_key' => '',
+      'auto_purge_enabled' => FALSE,
+      'auto_purge_entity_types' => ['node', 'taxonomy_term', 'media'],
+      'auto_purge_use_queue' => FALSE,
+      'tag_prefix' => '',
+      'rate_limit_enabled' => FALSE,
+      'rate_limit_per_minute' => 60,
+      'logging_enabled' => FALSE,
     ];
 
-    foreach ($booleanSettings as $setting) {
-      if ($config->get($setting) === NULL) {
-        $config->set($setting, FALSE);
+    foreach ($defaults as $key => $default) {
+      if ($config->get($key) === NULL) {
+        $config->set($key, $default);
       }
-    }
-
-    // Set default rate limit.
-    if ($config->get('rate_limit_per_minute') === NULL) {
-      $config->set('rate_limit_per_minute', 60);
     }
 
     $config->save();
