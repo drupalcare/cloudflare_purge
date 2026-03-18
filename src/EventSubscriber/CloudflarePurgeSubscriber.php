@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\EventSubscriber;
 
 use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
+use Drupal\Core\Cache\CacheableResponseInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -66,19 +67,14 @@ final class CloudflarePurgeSubscriber implements EventSubscriberInterface {
 
       $response = $event->getResponse();
 
-      // Get existing X-Drupal-Cache-Tags header.
-      $drupalTags = $response->headers->get('X-Drupal-Cache-Tags');
-
-      if (!is_string($drupalTags) || $drupalTags === '') {
+      // Get cache tags from the response's cacheable metadata.
+      // This works without requiring debug_cacheability_headers to be enabled,
+      // unlike reading from the X-Drupal-Cache-Tags debug header.
+      if (!$response instanceof CacheableResponseInterface) {
         return;
       }
 
-      // Convert Drupal cache tags to Cloudflare format.
-      $tags = explode(' ', $drupalTags);
-
-      if ($tags === []) {
-        return;
-      }
+      $tags = $response->getCacheableMetadata()->getCacheTags();
 
       // Filter empty tags.
       $tags = array_filter($tags, static fn($tag): bool => is_string($tag) && $tag !== '');
