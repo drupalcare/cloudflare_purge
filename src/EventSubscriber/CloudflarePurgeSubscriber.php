@@ -67,14 +67,22 @@ final class CloudflarePurgeSubscriber implements EventSubscriberInterface {
 
       $response = $event->getResponse();
 
-      // Get cache tags from the response's cacheable metadata.
-      // This works without requiring debug_cacheability_headers to be enabled,
-      // unlike reading from the X-Drupal-Cache-Tags debug header.
+      // Only process responses that implement CacheableResponseInterface.
       if (!$response instanceof CacheableResponseInterface) {
         return;
       }
 
-      $tags = $response->getCacheableMetadata()->getCacheTags();
+      $cacheableMetadata = $response->getCacheableMetadata();
+
+      // Skip uncacheable responses (max-age = 0), such as admin/edit pages.
+      // These pages implement CacheableResponseInterface but aren't meant to be
+      // cached. Adding a Cache-Tag header with potentially hundreds of tags can
+      // exceed web server header size limits and cause HTTP 500 errors.
+      if ($cacheableMetadata->getCacheMaxAge() === 0) {
+        return;
+      }
+
+      $tags = $cacheableMetadata->getCacheTags();
 
       // Filter empty tags.
       $tags = array_filter($tags, static fn($tag): bool => is_string($tag) && $tag !== '');
