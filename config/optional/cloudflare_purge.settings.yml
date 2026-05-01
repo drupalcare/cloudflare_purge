@@ -25,6 +25,13 @@ auto_purge_entity_types:
   - taxonomy_term
   - media
 auto_purge_use_queue: false
+
+# Discard queued purge items older than queue_max_age seconds.
+# Useful when the queue is rate-limited and items would expire at the edge
+# (via your Cloudflare cache TTL) before the queue can drain.
+queue_max_age_enabled: false
+queue_max_age: 900
+
 tag_prefix: ''
 
 # Rate limiting.

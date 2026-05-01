@@ -73,6 +73,18 @@ cloudflare_purge.settings:
       type: boolean
       label: 'Use queue for automatic purging'
 
+    queue_max_age_enabled:
+      type: boolean
+      label: 'Discard queued purge items older than the configured TTL'
+
+    queue_max_age:
+      type: integer
+      label: 'Maximum age (seconds) before a queued purge item is discarded'
+      constraints:
+        Range:
+          min: 1
+          max: 2592000
+
     tag_prefix:
       type: string
       label: 'Cache tag prefix'

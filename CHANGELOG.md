@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Optional TTL-based discard for queued purge items (`queue_max_age_enabled` + `queue_max_age`). When enabled, the queue worker drops items older than the configured age (default 900s) so a rate-limited queue cannot grow without bound. Disabled by default; intended to match the site's Cloudflare "Cache Everything" TTL since the edge would have expired the content anyway. Discard events are logged at the `debug` level to avoid flooding watchdog on backlogged sites. Requires a cache rebuild after upgrade because the queue worker now depends on `config.factory`.
+- Unit test coverage for the queue worker's TTL discard branch (`CloudflarePurgeQueueWorkerTest`).
 - Rate limiting implementation that actually uses the `rate_limit_enabled` and `rate_limit_per_minute` configuration settings
 - Proper retry tracking in queue worker with incremented retry counter
 - Retries field initialization when queueing cache tags
@@ -30,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented rate limiting limitations for multi-server/load-balanced environments
 
 ### Fixed
+- Queue worker now accepts numeric-string `timestamp` and `retries` payload fields. Previously the strict `is_int()` check silently reset the age to zero on queue backends that serialize integers as strings (e.g. some Redis-backed queues), which would have defeated the new TTL discard for those items.
 - Unit tests updated to match current API methods (`purgeEverything`, `purgeByUrls`, etc.)
 - Unit tests updated to test multi-URL form validation correctly
 - Queue worker retry counter now properly increments on failed attempts

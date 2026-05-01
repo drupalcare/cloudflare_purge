@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Plugin\QueueWorker;
 
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
+use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
 use Drupal\cloudflare_purge\PurgeInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Queue\QueueFactory;
@@ -56,6 +58,8 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
    *   The logger channel.
    * @param \Drupal\Core\Queue\QueueFactory $queueFactory
    *   The queue factory.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   The config factory.
    */
   public function __construct(
     array $configuration,
@@ -64,6 +68,7 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
     private readonly PurgeInterface $purgeService,
     private readonly LoggerChannelInterface $logger,
     private readonly QueueFactory $queueFactory,
+    private readonly ConfigFactoryInterface $configFactory,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
   }
@@ -84,6 +89,7 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
       $container->get('cloudflare_purge.purge'),
       $container->get('logger.channel.cloudflare_purge'),
       $container->get('queue'),
+      $container->get('config.factory'),
     );
   }
 
@@ -105,11 +111,36 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
     }
 
     $tags = $data['tags'];
-    $timestamp = isset($data['timestamp']) && is_int($data['timestamp']) ? $data['timestamp'] : time();
-    $retries = isset($data['retries']) && is_int($data['retries']) ? $data['retries'] : 0;
+    // Accept any positive numeric timestamp; some queue backends serialize
+    // ints as strings, and a strict is_int() check would silently reset the
+    // age to zero, defeating the TTL discard for those items.
+    $timestamp = (isset($data['timestamp']) && is_numeric($data['timestamp']) && (int) $data['timestamp'] > 0)
+      ? (int) $data['timestamp']
+      : time();
+    $retries = (isset($data['retries']) && is_numeric($data['retries']) && (int) $data['retries'] >= 0)
+      ? (int) $data['retries']
+      : 0;
+
+    $age = time() - $timestamp;
+
+    // Discard items older than the configured TTL. The Cloudflare edge cache
+    // would have expired the content anyway, so the API call is unnecessary.
+    $config = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
+    if ($config->get('queue_max_age_enabled') === TRUE) {
+      $maxAge = (int) ($config->get('queue_max_age') ?? 0);
+      if ($maxAge > 0 && $age > $maxAge) {
+        // Use debug to avoid flooding watchdog on busy/backlogged sites,
+        // which is exactly when this branch fires most often.
+        $this->logger->debug('Discarded @count cache tag(s) from queue (age @age s exceeded TTL @ttl s).', [
+          '@count' => count($tags),
+          '@age' => $age,
+          '@ttl' => $maxAge,
+        ]);
+        return;
+      }
+    }
 
     // Log if item has been in queue for too long.
-    $age = time() - $timestamp;
     if ($age > self::MAX_AGE_WARNING) {
       $this->logger->notice('Processing Cloudflare purge item that was queued @age seconds ago.', [
         '@age' => $age,

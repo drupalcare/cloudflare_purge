@@ -133,6 +133,33 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
       '#default_value' => (bool) ($config->get('auto_purge_use_queue') ?? FALSE),
     ];
 
+    $form['queue']['queue_max_age_enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Discard queued items older than the configured TTL'),
+      '#description' => $this->t('When the queue cannot keep up (e.g., free-tier rate limits), items older than the TTL below are dropped during cron processing. Safe when your Cloudflare cache TTL would have expired the content anyway.'),
+      '#default_value' => (bool) ($config->get('queue_max_age_enabled') ?? FALSE),
+      '#states' => [
+        'visible' => [
+          ':input[name="auto_purge_use_queue"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['queue']['queue_max_age'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Maximum queue item age (seconds)'),
+      '#description' => $this->t('Set this to your Cloudflare "Cache Everything" TTL (e.g., 900 for 15 minutes). Items older than this are removed from the queue without contacting the API.'),
+      '#default_value' => (int) ($config->get('queue_max_age') ?? 900),
+      '#min' => 1,
+      '#max' => 2592000,
+      '#states' => [
+        'visible' => [
+          ':input[name="auto_purge_use_queue"]' => ['checked' => TRUE],
+          ':input[name="queue_max_age_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
     // Rate limiting.
     $form['rate_limit'] = [
       '#type' => 'details',
@@ -218,6 +245,14 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     if ($rateLimit !== NULL && (!is_numeric($rateLimit) || (int) $rateLimit < 1 || (int) $rateLimit > 1000)) {
       $form_state->setErrorByName('rate_limit_per_minute', $this->t('Rate limit must be between 1 and 1000.'));
     }
+
+    // Validate queue max age only when the discard feature is enabled.
+    if ((bool) $form_state->getValue('queue_max_age_enabled')) {
+      $queueMaxAge = $form_state->getValue('queue_max_age');
+      if ($queueMaxAge === NULL || $queueMaxAge === '' || !is_numeric($queueMaxAge) || (int) $queueMaxAge < 1 || (int) $queueMaxAge > 2592000) {
+        $form_state->setErrorByName('queue_max_age', $this->t('Maximum queue item age must be between 1 and 2592000 seconds.'));
+      }
+    }
   }
 
   /**
@@ -242,6 +277,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
 
     // Save queue settings.
     $config->set('auto_purge_use_queue', (bool) $form_state->getValue('auto_purge_use_queue'));
+    $config->set('queue_max_age_enabled', (bool) $form_state->getValue('queue_max_age_enabled'));
+    $config->set('queue_max_age', (int) ($form_state->getValue('queue_max_age') ?? 900));
 
     // Save rate limiting settings.
     $config->set('rate_limit_enabled', (bool) $form_state->getValue('rate_limit_enabled'));

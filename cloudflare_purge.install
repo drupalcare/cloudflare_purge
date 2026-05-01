@@ -172,6 +172,8 @@ function cloudflare_purge_install(): void {
       'auto_purge_enabled' => FALSE,
       'auto_purge_entity_types' => ['node', 'taxonomy_term', 'media'],
       'auto_purge_use_queue' => FALSE,
+      'queue_max_age_enabled' => FALSE,
+      'queue_max_age' => 900,
       'tag_prefix' => '',
       'rate_limit_enabled' => FALSE,
       'rate_limit_per_minute' => 60,
@@ -308,5 +310,32 @@ function cloudflare_purge_update_9003(): string {
   }
   catch (\Exception $e) {
     return (string) t('Error adding storage method: @message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Add queue TTL discard configuration.
+ */
+function cloudflare_purge_update_9004(): string {
+  try {
+    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+
+    $newSettings = [
+      'queue_max_age_enabled' => FALSE,
+      'queue_max_age' => 900,
+    ];
+
+    foreach ($newSettings as $key => $default) {
+      if ($config->get($key) === NULL) {
+        $config->set($key, $default);
+      }
+    }
+
+    $config->save();
+
+    return (string) t('Added queue TTL discard configuration (disabled by default).');
+  }
+  catch (\Exception $e) {
+    return (string) t('Error adding queue TTL configuration: @message', ['@message' => $e->getMessage()]);
   }
 }

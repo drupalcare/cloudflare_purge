@@ -18,7 +18,7 @@
   <li><strong>Purge by Prefix</strong> – Clear all content under URL prefixes (all plans)</li>
   <li><strong>Purge by Hostname</strong> – Clear all content for specific hostnames (all plans)</li>
   <li><strong>Automatic Cache Tag Purging</strong> – Automatically purge Cloudflare when Drupal cache tags are invalidated</li>
-  <li><strong>Queue-Based Processing</strong> – Queue purge requests for batch processing during cron</li>
+  <li><strong>Queue-Based Processing</strong> – Queue purge requests for batch processing during cron, with optional TTL-based auto-discard so a rate-limited queue cannot grow without bound</li>
   <li><strong>Purge History</strong> – View recent purge operations from the admin UI</li>
   <li><strong>Bearer Token Authentication</strong> – Modern, secure API authentication with granular permissions (recommended)</li>
   <li><strong>Legacy API Key Authentication</strong> – Email + API Key authentication for backward compatibility</li>
@@ -41,7 +41,7 @@
   <li><strong>PHP 8.1+ with strict typing</strong> throughout</li>
   <li><strong>All Cloudflare purge methods</strong> – URL, Tag, Prefix, Hostname, Everything</li>
   <li><strong>Automatic cache tag integration</strong> with Drupal's cache system</li>
-  <li><strong>Queue support</strong> for high-traffic sites</li>
+  <li><strong>Queue support</strong> for high-traffic sites, with TTL-based discard for rate-limited backlogs</li>
   <li><strong>Full dependency injection</strong> following Drupal coding standards</li>
   <li><strong>Modern authentication system</strong> with Bearer Token as default</li>
   <li><strong>Flexible storage methods</strong> – Plain text or Key module integration</li>
@@ -101,6 +101,9 @@
   <li>You want automatic cache invalidation when Drupal content changes</li>
   <li>You require enterprise-level credential security with external key management</li>
 </ul>
+
+<h2><strong>Relationship to the Cloudflare Module</strong></h2>
+<p>The <strong>Cloudflare Purge</strong> module is an alternative way to talk to Cloudflare from Drupal. The <strong>Cloudflare</strong> module (and its <strong>Cloudflare Purger</strong> submodule) integrate with the Purge ecosystem and the Cloudflare PHP SDK, while this module focuses only on cache purging using Drupal core’s HTTP client and its own UI/Drush commands. If you are already happy with the Cloudflare module and Purge, you can keep using them; if you just need a simple, standalone way to trigger Cloudflare cache purges from Drupal, this module may be a good fit.</p>
 
 <h2><strong>Requirements</strong></h2>
 <ul>
@@ -171,6 +174,7 @@ drush en key</code></pre>
   <li><strong>Enable automatic purging</strong> – Purge Cloudflare when content changes</li>
   <li><strong>Entity types</strong> – Select which entities trigger automatic purges</li>
   <li><strong>Queue processing</strong> – Use queue for high-traffic sites</li>
+  <li><strong>Queue TTL discard</strong> – Optionally drop queued items older than your Cloudflare cache TTL, so a rate-limited queue cannot grow indefinitely (free tier 5 req/min)</li>
   <li><strong>Tag prefix</strong> – Add prefix for multi-site setups sharing a zone</li>
   <li><strong>Detailed logging</strong> – Enable for debugging</li>
 </ul>
