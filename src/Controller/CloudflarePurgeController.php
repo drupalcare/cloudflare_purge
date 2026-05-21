@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Controller;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Controller\ControllerBase;
@@ -127,8 +128,8 @@ final class CloudflarePurgeController extends ControllerBase {
         }
 
         $message = $variables !== []
-          ? $this->t('@message', ['@message' => $row->message] + $variables)
-          : $row->message;
+          ? new FormattableMarkup((string) $row->message, $variables)
+          : (string) $row->message;
 
         // Determine purge type from message.
         $type = $this->determinePurgeType((string) $row->message);
