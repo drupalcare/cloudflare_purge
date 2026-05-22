@@ -37,5 +37,8 @@
             "phpstan/extension-installer": true,
             "dealerdirect/phpcodesniffer-composer-installer": true
         }
+    },
+    "scripts": {
+        "check-log-rendering": "php scripts/check-log-message-rendering.php"
     }
 }

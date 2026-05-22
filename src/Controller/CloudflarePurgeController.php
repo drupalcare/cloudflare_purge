@@ -114,22 +114,10 @@ final class CloudflarePurgeController extends ControllerBase {
       $rows = [];
 
       foreach ($results as $row) {
-        $variables = [];
-        if (!empty($row->variables) && is_string($row->variables)) {
-          try {
-            $unserialized = unserialize($row->variables, ['allowed_classes' => FALSE]);
-            if (is_array($unserialized)) {
-              $variables = $unserialized;
-            }
-          }
-          catch (\Throwable) {
-            // Malformed serialized data - skip variables for this entry.
-          }
-        }
-
-        $message = $variables !== []
-          ? new FormattableMarkup((string) $row->message, $variables)
-          : (string) $row->message;
+        $message = self::formatWatchdogMessage(
+          (string) $row->message,
+          is_string($row->variables ?? NULL) ? $row->variables : '',
+        );
 
         // Determine purge type from message.
         $type = $this->determinePurgeType((string) $row->message);
@@ -184,6 +172,40 @@ final class CloudflarePurgeController extends ControllerBase {
     }
 
     return $build;
+  }
+
+  /**
+   * Formats a stored watchdog message and variables for display.
+   *
+   * Watchdog stores the message template and serialized placeholders
+   * separately. They must be combined with FormattableMarkup (same
+   * substitution model as dblog).
+   *
+   * @param string $message
+   *   The log message template from the watchdog table.
+   * @param string $serializedVariables
+   *   Serialized placeholder values from the watchdog table.
+   *
+   * @return \Drupal\Component\Render\FormattableMarkup|string
+   *   Render-safe message for table output.
+   */
+  public static function formatWatchdogMessage(string $message, string $serializedVariables = ''): FormattableMarkup|string {
+    $variables = [];
+    if ($serializedVariables !== '') {
+      try {
+        $unserialized = unserialize($serializedVariables, ['allowed_classes' => FALSE]);
+        if (is_array($unserialized)) {
+          $variables = $unserialized;
+        }
+      }
+      catch (\Throwable) {
+        // Malformed serialized data - skip variables for this entry.
+      }
+    }
+
+    return $variables !== []
+      ? new FormattableMarkup($message, $variables)
+      : $message;
   }
 
   /**

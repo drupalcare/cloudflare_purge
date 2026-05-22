@@ -10,6 +10,7 @@
   <testsuites>
     <testsuite name="Cloudflare Purge Test Suite">
       <directory>./tests/src/Unit</directory>
+      <directory>./tests/src/Kernel</directory>
     </testsuite>
   </testsuites>
   <source>
