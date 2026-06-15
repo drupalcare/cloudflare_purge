@@ -33,7 +33,7 @@ Use this module when you need to purge Cloudflare cache and:
 ## Features
 
 - **Purge Everything** - Clear all cached content with confirmation dialog
-- **Purge by URL** - Clear one or more specific URLs (up to 30 per request)
+- **Purge by URL** - Clear one or more specific URLs (up to 100 per request)
 - **Purge by Cache Tag** - Clear content by cache tags (all plans)
 - **Purge by Prefix** - Clear all content under URL prefixes (all plans)
 - **Purge by Hostname** - Clear all content for specific hostnames (all plans)
@@ -241,14 +241,24 @@ Navigate to **Configuration** » **Cloudflare Purge**:
 |-----------|------|-------------|
 | Credentials | `/admin/config/cloudflare-purge/credentials` | Configure API credentials |
 | Auto-Purge Settings | `/admin/config/cloudflare-purge/settings` | Configure automatic purging |
-| Purge by URL | `/admin/config/cloudflare-purge/purge-url` | Purge 1-30 URLs |
+| Purge by URL | `/admin/config/cloudflare-purge/purge-url` | Purge URLs (auto-batched; 100/request, 500 on Enterprise) |
 | Purge by Cache Tag | `/admin/config/cloudflare-purge/purge-tag` | Purge by cache tags (all plans) |
 | Purge by Prefix | `/admin/config/cloudflare-purge/purge-prefix` | Purge by URL prefix (all plans) |
 | Purge by Hostname | `/admin/config/cloudflare-purge/purge-hostname` | Purge by hostname (all plans) |
 | Purge Everything | `/admin/config/cloudflare-purge/purge-everything` | Clear entire cache |
 | Purge History | `/admin/config/cloudflare-purge/history` | View recent operations |
+| Plans & Limits | `/admin/config/cloudflare-purge/limits` | Cloudflare limits by plan, with sources |
 
 **Note:** Purge forms display a warning and the submit button is disabled until credentials are configured. Configure credentials first, then purge operations will be available.
+
+### Purge History
+
+The **Purge History** page lists recent purge operations read from the Drupal log:
+
+- It requires the core **Database Logging** (`dblog`) module. Without it, the page explains that logging must be enabled.
+- Successful operations are recorded only when **detailed logging** is enabled in Auto-Purge Settings; errors are always logged.
+- The number of entries shown is configurable via **Purge history entries to display** in Auto-Purge Settings (default 100, max 1000). Entries themselves are stored and pruned by the Database Logging module.
+- A **Clear history** action (requires *Administer Cloudflare Purge*) deletes only this module's log entries, leaving other Drupal log messages untouched.
 
 ## Permissions
 
@@ -289,22 +299,22 @@ drush cf-purge-url https://example.com/a https://example.com/b
 drush cfpu "https://example.com/a,https://example.com/b"
 ```
 
-Purges specific URLs from Cloudflare cache (up to 30 per request, automatically batched).
+Purges specific URLs from Cloudflare cache (up to 100 per request, automatically batched).
 
 ### Purge by Cache Tag (All Plans)
 
 ```bash
 # Single tag
-drush cloudflare:purge-tags node-123
+drush cloudflare:purge-tags node:123
 
 # Multiple tags (space-separated)
-drush cf-purge-tags node-123 taxonomy-term-45
+drush cf-purge-tags node:123 taxonomy_term:45
 
 # Multiple tags (comma-separated)
 drush cfpt "product-1,product-2,product-3"
 ```
 
-Purges content by cache tags (up to 30 per request).
+Purges content by cache tags (up to 100 per request).
 
 ### Purge by Prefix (All Plans)
 
@@ -319,7 +329,7 @@ drush cf-purge-prefixes "https://example.com/products/,https://example.com/image
 drush cfpp https://example.com/blog/
 ```
 
-Purges all content under URL prefixes (up to 30 per request).
+Purges all content under URL prefixes (up to 100 per request).
 
 ### Purge by Hostname (All Plans)
 
@@ -334,7 +344,7 @@ drush cf-purge-hosts "cdn.example.com,images.example.com"
 drush cfph cdn.example.com
 ```
 
-Purges all content for specific hostnames (up to 30 per request).
+Purges all content for specific hostnames (up to 100 per request).
 
 ### Check Status
 
@@ -355,7 +365,7 @@ $ drush cloudflare:purge-url https://example.com/node/1
 $ drush cloudflare:status
  [success] Cloudflare credentials are configured.
 
-$ drush cloudflare:purge-tags node-123 node-456
+$ drush cloudflare:purge-tags node:123 node-456
  [success] Successfully purged 2 of 2 tag(s).
 ```
 
@@ -454,7 +464,7 @@ You have partial credentials in `settings.php` but not a complete set. Either:
 **Solution:**
 1. Check you haven't exceeded rate limits (Free: 5 requests/minute)
 2. Verify the format is correct:
-   - Tags: No spaces (e.g., `node-123`)
+   - Tags: No spaces, colon-style (e.g., `node:123`)
    - Prefixes: Full URLs (e.g., `https://example.com/blog/`)
    - Hostnames: No protocol (e.g., `cdn.example.com`)
 
@@ -480,9 +490,9 @@ Cloudflare enforces rate limits on purge requests (tag/prefix/hostname/purge eve
 | Business | 10/second | 50 | 100 |
 | Enterprise | 50/second | 500 | 100 |
 
-**Note:** As of April 2025, Cloudflare made all purge methods available on all plans including Free.
+**Note:** As of April 3, 2025, Cloudflare made all purge methods available on all plans including Free. See [Cloudflare's changelog](https://developers.cloudflare.com/cache/changelog/).
 
-**Important:** Rate limits are subject to change. For the latest information, see [Cloudflare's official documentation](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits). *(Last verified: January 2026)*
+**Important:** Rate limits are subject to change. For the latest information, see [Cloudflare's official documentation](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits). *(Last verified: June 14, 2026, against Cloudflare docs last updated April 16, 2026.)*
 
 If you exceed the rate limit, wait and try again.
 
@@ -502,13 +512,25 @@ Ensure your Bearer Token has the correct permission:
 
 | Limit Type | Value |
 |------------|-------|
-| URLs per request | 30 |
-| Cache tags per request | 30 |
-| Prefixes per request | 30 |
-| Hostnames per request | 30 |
-| API calls (Free tier) | 1,000/day |
+| URLs per request | 100 |
+| Cache tags per request | 100 |
+| Prefixes per request | 100 |
+| Hostnames per request | 100 |
+| URLs per request (Enterprise) | 500 |
+| Tag/prefix/hostname rate (Free tier) | 5 requests/minute |
+| Tag/prefix/hostname rate (Pro / Business / Enterprise) | 5 / 10 / 50 requests/second |
 
-The module automatically batches larger requests when using Drush commands.
+Per-request limits are 100 operations for cache-tag, prefix and hostname purges
+on all plans. Single-file URL purges allow 100 URLs per request on Free, Pro and
+Business, and 500 per request on Enterprise. The module automatically batches
+larger requests on every entry point (UI, Drush, and auto-purge).
+
+The request rates above apply to tag, prefix, hostname and purge-everything
+requests. Single-file URL purges use separate, higher per-second thresholds
+(Free 800, Pro/Business 1500, Enterprise 3000 URLs/second).
+
+See [Cloudflare's purge limits](https://developers.cloudflare.com/cache/how-to/purge-cache/) for the authoritative, current values.
+*(Last verified: June 14, 2026, against Cloudflare docs last updated April 16, 2026.)*
 
 ## API Documentation
 

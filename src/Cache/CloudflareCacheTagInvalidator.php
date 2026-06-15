@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Cache;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
-use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
+use Drupal\cloudflare_purge\ItemBatcher;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -39,12 +40,15 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
    *   The logger channel.
    * @param \Drupal\Core\Queue\QueueFactory $queueFactory
    *   The queue factory.
+   * @param \Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface $cacheTagFormatter
+   *   The cache tag formatter.
    */
   public function __construct(
     private readonly PurgeInterface $purgeService,
     private readonly ConfigFactoryInterface $configFactory,
     private readonly LoggerChannelInterface $logger,
     private readonly QueueFactory $queueFactory,
+    private readonly CacheTagFormatterInterface $cacheTagFormatter,
   ) {}
 
   /**
@@ -56,7 +60,7 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
       return;
     }
 
-    $config = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
+    $config = $this->configFactory->get(CloudflarePurgeSettings::NAME);
 
     // Check if auto-purge is enabled.
     if ($config->get('auto_purge_enabled') !== TRUE) {
@@ -70,8 +74,12 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
       return;
     }
 
-    // Filter tags to only include those we care about.
-    $filteredTags = $this->filterTags($tags);
+    // Select the tags to purge via the shared formatter so the purge path uses
+    // the same selection and wire transform as the response subscriber's
+    // Cache-Tag header — including when header filtering is disabled. (The
+    // header may additionally be byte-capped, so it can carry fewer tags than
+    // are purged here; that only ever under-emits, never mismatches a token.)
+    $filteredTags = $this->cacheTagFormatter->selectForPurge($tags);
 
     if ($filteredTags === []) {
       return;
@@ -87,49 +95,6 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
   }
 
   /**
-   * Filters cache tags to only include relevant entity tags.
-   *
-   * @param array<int|string, string> $tags
-   *   The original cache tags.
-   *
-   * @return array<int, string>
-   *   The filtered cache tags.
-   */
-  private function filterTags(array $tags): array {
-    $config = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
-    $enabledEntityTypes = $config->get('auto_purge_entity_types');
-
-    if (!is_array($enabledEntityTypes) || $enabledEntityTypes === []) {
-      return [];
-    }
-
-    $filtered = [];
-
-    foreach ($tags as $tag) {
-      if (!is_string($tag) || $tag === '') {
-        continue;
-      }
-
-      // Check if tag matches an enabled entity type pattern.
-      foreach ($enabledEntityTypes as $entityType) {
-        if (!is_string($entityType)) {
-          continue;
-        }
-
-        // Match patterns like "node:123", "node_list", etc.
-        if (str_starts_with($tag, $entityType . ':') ||
-            str_starts_with($tag, $entityType . '_list') ||
-            $tag === $entityType) {
-          $filtered[] = $tag;
-          break;
-        }
-      }
-    }
-
-    return array_values(array_unique($filtered));
-  }
-
-  /**
    * Queues tags for later processing.
    *
    * @param array<int, string> $tags
@@ -139,8 +104,9 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
     try {
       $queue = $this->queueFactory->get(self::QUEUE_NAME);
 
-      // Batch tags into groups of max batch size.
-      $batches = array_chunk($tags, CloudflarePurgeApi::MAX_BATCH_SIZE);
+      // Batch tags into groups of max batch size so each queue item is a
+      // single Cloudflare request, kept small to drain within the rate limit.
+      $batches = ItemBatcher::chunk($tags, CloudflarePurgeApi::MAX_BATCH_SIZE);
 
       foreach ($batches as $batch) {
         $queue->createItem([
@@ -168,18 +134,15 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
    *   The cache tags to purge.
    */
   private function purgeTags(array $tags): void {
-    // Batch tags into groups of max batch size.
-    $batches = array_chunk($tags, CloudflarePurgeApi::MAX_BATCH_SIZE);
-
-    foreach ($batches as $batch) {
-      try {
-        $this->purgeService->purgeByTags($batch, FALSE);
-      }
-      catch (\Exception $e) {
-        $this->logger->error('Failed to purge cache tags: @message', [
-          '@message' => $e->getMessage(),
-        ]);
-      }
+    // The Purge service splits the tags into Cloudflare-sized batches itself,
+    // so hand it the full set rather than pre-chunking here.
+    try {
+      $this->purgeService->purgeByTags($tags, FALSE);
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to purge cache tags: @message', [
+        '@message' => $e->getMessage(),
+      ]);
     }
   }
 

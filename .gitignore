@@ -10,3 +10,6 @@ composer.lock
 
 # Node modules (for local development only)
 /node_modules/
+
+# PHPUnit run cache
+.phpunit.result.cache

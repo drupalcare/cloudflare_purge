@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Form;
 
+use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
+use Drupal\cloudflare_purge\CredentialResolverInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\Core\Site\Settings;
 use Drupal\key\KeyRepositoryInterface;
 use Drupal\Core\Extension\ModuleExtensionList;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -30,20 +33,58 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
   /**
    * Config settings.
+   *
+   * @deprecated in cloudflare_purge:3.1.0 and is removed from
+   *   cloudflare_purge:4.0.0. Use
+   *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::NAME instead.
+   *
+   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
    */
-  public const SETTINGS = 'cloudflare_purge.settings';
+  public const SETTINGS = CloudflarePurgeSettings::NAME;
 
   /**
-   * Authentication method constants.
+   * Bearer-token authentication method.
+   *
+   * @deprecated in cloudflare_purge:3.1.0 and is removed from
+   *   cloudflare_purge:4.0.0. Use
+   *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::AUTH_BEARER instead.
+   *
+   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
    */
-  public const AUTH_BEARER = 'bearer';
-  public const AUTH_LEGACY = 'legacy';
+  public const AUTH_BEARER = CloudflarePurgeSettings::AUTH_BEARER;
 
   /**
-   * Storage method constants.
+   * Legacy API key/email authentication method.
+   *
+   * @deprecated in cloudflare_purge:3.1.0 and is removed from
+   *   cloudflare_purge:4.0.0. Use
+   *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::AUTH_LEGACY instead.
+   *
+   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
    */
-  public const STORAGE_PLAIN = 'plain';
-  public const STORAGE_KEY = 'key';
+  public const AUTH_LEGACY = CloudflarePurgeSettings::AUTH_LEGACY;
+
+  /**
+   * Plain-text credential storage method.
+   *
+   * @deprecated in cloudflare_purge:3.1.0 and is removed from
+   *   cloudflare_purge:4.0.0. Use
+   *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::STORAGE_PLAIN instead.
+   *
+   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
+   */
+  public const STORAGE_PLAIN = CloudflarePurgeSettings::STORAGE_PLAIN;
+
+  /**
+   * Key-module credential storage method.
+   *
+   * @deprecated in cloudflare_purge:3.1.0 and is removed from
+   *   cloudflare_purge:4.0.0. Use
+   *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::STORAGE_KEY instead.
+   *
+   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
+   */
+  public const STORAGE_KEY = CloudflarePurgeSettings::STORAGE_KEY;
 
   /**
    * Constructs a CloudflarePurgeForm object.
@@ -58,6 +99,8 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   The module handler service.
    * @param \Drupal\Core\Extension\ModuleExtensionList $moduleExtensionList
    *   The module extension list service, used to resolve the module path.
+   * @param \Drupal\cloudflare_purge\CredentialResolverInterface $credentialResolver
+   *   The credential resolver.
    * @param \Drupal\key\KeyRepositoryInterface|null $keyRepository
    *   (optional) The Key module repository service, if available.
    */
@@ -67,6 +110,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     protected LoggerChannelInterface $logger,
     protected ModuleHandlerInterface $moduleHandler,
     protected ModuleExtensionList $moduleExtensionList,
+    protected CredentialResolverInterface $credentialResolver,
     protected ?KeyRepositoryInterface $keyRepository = NULL,
   ) {
     parent::__construct($config_factory, $typed_config_manager);
@@ -82,6 +126,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       $container->get('logger.factory')->get('cloudflare_purge'),
       $container->get('module_handler'),
       $container->get('extension.list.module'),
+      $container->get('cloudflare_purge.credential_resolver'),
       $container->has('key.repository') ? $container->get('key.repository') : NULL,
     );
   }
@@ -90,7 +135,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   protected function getEditableConfigNames(): array {
-    return [static::SETTINGS];
+    return [CloudflarePurgeSettings::NAME];
   }
 
   /**
@@ -104,11 +149,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $config = $this->config(static::SETTINGS);
+    $config = $this->config(CloudflarePurgeSettings::NAME);
 
     // Attach CSS library.
     $form['#attached']['library'][] = 'cloudflare_purge/form';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
+    $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 
     // Check if credentials are overridden in settings.php.
     if ($this->hasSettingsOverride()) {
@@ -187,8 +233,8 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '#type' => 'radios',
       '#title' => '<img src="' . base_path() . $module_path . '/images/icon-auth.svg" alt="" class="fieldset-icon"> ' . $this->t('Authentication Method'),
       '#options' => [
-        self::AUTH_BEARER => $this->t('Bearer Token'),
-        self::AUTH_LEGACY => $this->t('Legacy API Key/Email'),
+        CloudflarePurgeSettings::AUTH_BEARER => $this->t('Bearer Token'),
+        CloudflarePurgeSettings::AUTH_LEGACY => $this->t('Legacy API Key/Email'),
       ],
       '#default_value' => $auth_method,
       '#description' => $this->t('Choose your authentication method. Bearer Token is recommended.'),
@@ -197,11 +243,11 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
     // Storage Method (in left column)
     $storage_options = [
-      self::STORAGE_PLAIN => $this->t('Plain text input'),
+      CloudflarePurgeSettings::STORAGE_PLAIN => $this->t('Plain text input'),
     ];
 
     if ($this->moduleHandler->moduleExists('key')) {
-      $storage_options[self::STORAGE_KEY] = $this->t('Secure key input');
+      $storage_options[CloudflarePurgeSettings::STORAGE_KEY] = $this->t('Secure key input');
     }
 
     $form['layout']['left']['storage_method'] = [
@@ -222,7 +268,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '</div>',
       '#states' => [
         'visible' => [
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
       ],
     ];
@@ -252,10 +298,10 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '#description' => $this->t('Enter your Cloudflare Zone ID.'),
       '#states' => [
         'visible' => [
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
         'required' => [
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
       ],
     ];
@@ -269,10 +315,10 @@ final class CloudflarePurgeForm extends ConfigFormBase {
         '#description' => $this->t('Select the key containing your Cloudflare Zone ID.'),
         '#states' => [
           'visible' => [
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
           'required' => [
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
         ],
       ];
@@ -287,12 +333,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '#description' => $this->t('Enter your Cloudflare Bearer Token (API Token).'),
       '#states' => [
         'visible' => [
-          ':input[name="auth_method"]' => ['value' => self::AUTH_BEARER],
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_BEARER],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
         'required' => [
-          ':input[name="auth_method"]' => ['value' => self::AUTH_BEARER],
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_BEARER],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
       ],
     ];
@@ -306,12 +352,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
         '#description' => $this->t('Select the key containing your Cloudflare Bearer Token.'),
         '#states' => [
           'visible' => [
-            ':input[name="auth_method"]' => ['value' => self::AUTH_BEARER],
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_BEARER],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
           'required' => [
-            ':input[name="auth_method"]' => ['value' => self::AUTH_BEARER],
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_BEARER],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
         ],
       ];
@@ -326,12 +372,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '#description' => $this->t('Enter your Cloudflare account email address.'),
       '#states' => [
         'visible' => [
-          ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
         'required' => [
-          ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
       ],
     ];
@@ -345,12 +391,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
         '#description' => $this->t('Select the key containing your Cloudflare email.'),
         '#states' => [
           'visible' => [
-            ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
           'required' => [
-            ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
         ],
       ];
@@ -365,12 +411,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       '#description' => $this->t('Enter your Cloudflare Global API Key.'),
       '#states' => [
         'visible' => [
-          ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
         'required' => [
-          ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-          ':input[name="storage_method"]' => ['value' => self::STORAGE_PLAIN],
+          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
         ],
       ],
     ];
@@ -384,12 +430,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
         '#description' => $this->t('Select the key containing your Cloudflare API Key.'),
         '#states' => [
           'visible' => [
-            ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
           'required' => [
-            ':input[name="auth_method"]' => ['value' => self::AUTH_LEGACY],
-            ':input[name="storage_method"]' => ['value' => self::STORAGE_KEY],
+            ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+            ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_KEY],
           ],
         ],
       ];
@@ -412,10 +458,10 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     $storage_method = $form_state->getValue('storage_method');
 
     // Validate Zone ID format (only for plain text storage).
-    if ($storage_method === self::STORAGE_PLAIN) {
+    if ($storage_method === CloudflarePurgeSettings::STORAGE_PLAIN) {
       $zone_id = $form_state->getValue('zone_id');
       if (is_string($zone_id) && $zone_id !== '') {
-        if (!preg_match('/^[a-f0-9]{32}$/i', $zone_id)) {
+        if (!preg_match(CloudflarePurgeApi::ZONE_ID_PATTERN, $zone_id)) {
           $form_state->setErrorByName('zone_id', $this->t('Invalid Zone ID format. Zone ID should be a 32-character hexadecimal string. You can find it in your Cloudflare dashboard.'));
         }
       }
@@ -426,7 +472,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $config = $this->config(self::SETTINGS);
+    $config = $this->config(CloudflarePurgeSettings::NAME);
     $auth_method = $form_state->getValue('auth_method');
     $storage_method = $form_state->getValue('storage_method');
 
@@ -443,7 +489,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     $config->set('storage_method', $storage_method);
 
     // Determine which credentials to save based on authentication method.
-    if ($auth_method === self::AUTH_BEARER) {
+    if ($auth_method === CloudflarePurgeSettings::AUTH_BEARER) {
       $active_fields = ['zone_id', 'bearer_token'];
       $inactive_fields = ['email', 'authorization'];
     }
@@ -454,7 +500,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
     // Save active credentials based on storage method.
     foreach ($active_fields as $field) {
-      if ($storage_method === self::STORAGE_KEY) {
+      if ($storage_method === CloudflarePurgeSettings::STORAGE_KEY) {
         // Get value from {field}_key form element.
         $key_field = $field . '_key';
         $value = $form_state->getValue($key_field);
@@ -502,15 +548,11 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   The form with override message.
    */
   protected function buildOverrideMessage(array $form): array {
-    $credentials = Settings::get('cloudflare_purge_credentials');
-
-    $auth_type = 'Unknown';
-    if (!empty($credentials['bearer_token'])) {
-      $auth_type = 'Bearer Token';
-    }
-    elseif (!empty($credentials['email']) && !empty($credentials['authorization'])) {
-      $auth_type = 'Legacy API Key/Email';
-    }
+    $auth_type = match ($this->credentialResolver->getSettingsOverrideAuthType()) {
+      CloudflarePurgeSettings::AUTH_BEARER => $this->t('Bearer Token'),
+      CloudflarePurgeSettings::AUTH_LEGACY => $this->t('Legacy API Key/Email'),
+      default => $this->t('Unknown'),
+    };
 
     $form['override_message'] = [
       '#type' => 'container',
@@ -543,28 +585,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   AUTH_BEARER or AUTH_LEGACY constant.
    */
   protected function detectAuthMethod(): string {
-    $config = $this->config(static::SETTINGS);
-
-    // Check if user has explicitly set a preference.
-    $saved_method = $config->get('auth_method');
-    if ($saved_method) {
-      return $saved_method;
-    }
-
-    // For existing users, detect from credentials.
-    // Check for Bearer Token credentials.
-    if ($config->get('bearer_token') || $config->get('bearer_token_key')) {
-      return self::AUTH_BEARER;
-    }
-
-    // Check for Legacy credentials.
-    if ($config->get('email') || $config->get('authorization') ||
-        $config->get('email_key') || $config->get('authorization_key')) {
-      return self::AUTH_LEGACY;
-    }
-
-    // New user: Default to Bearer (modern approach).
-    return self::AUTH_BEARER;
+    return $this->credentialResolver->detectAuthMethod();
   }
 
   /**
@@ -579,33 +600,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   STORAGE_PLAIN or STORAGE_KEY constant.
    */
   protected function detectStorageMethod(): string {
-    $config = $this->config(static::SETTINGS);
-
-    // Check if user has explicitly set a preference.
-    $saved_method = $config->get('storage_method');
-    if ($saved_method) {
-      return $saved_method;
-    }
-
-    // For existing users, detect from credentials.
-    // If any _key field has a value, they're using Key module.
-    $key_fields = ['zone_id_key', 'bearer_token_key', 'email_key', 'authorization_key'];
-    foreach ($key_fields as $key_field) {
-      if ($config->get($key_field)) {
-        return self::STORAGE_KEY;
-      }
-    }
-
-    // Check if plain text credentials exist.
-    $plain_fields = ['zone_id', 'bearer_token', 'email', 'authorization'];
-    foreach ($plain_fields as $plain_field) {
-      if ($config->get($plain_field)) {
-        return self::STORAGE_PLAIN;
-      }
-    }
-
-    // New user: Default to Key module if installed, otherwise Plain.
-    return $this->moduleHandler->moduleExists('key') ? self::STORAGE_KEY : self::STORAGE_PLAIN;
+    return $this->credentialResolver->detectStorageMethod();
   }
 
   /**
@@ -614,7 +609,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    * Used when settings.php override is detected.
    */
   protected function cleanAllConfig(): void {
-    $config = $this->config(self::SETTINGS);
+    $config = $this->config(CloudflarePurgeSettings::NAME);
     $all_fields = ['zone_id', 'bearer_token', 'email', 'authorization'];
 
     foreach ($all_fields as $field) {
@@ -642,21 +637,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   TRUE if complete override exists, FALSE otherwise.
    */
   protected function hasSettingsOverride(): bool {
-    $credentials = Settings::get('cloudflare_purge_credentials');
-    if (!is_array($credentials)) {
-      return FALSE;
-    }
-
-    // Check for complete Bearer Token credentials.
-    $has_complete_bearer = !empty($credentials['zone_id']) && !empty($credentials['bearer_token']);
-
-    // Check for complete Legacy credentials.
-    $has_complete_legacy = !empty($credentials['zone_id']) &&
-                           !empty($credentials['email']) &&
-                           !empty($credentials['authorization']);
-
-    // Only return TRUE if we have a complete set.
-    return $has_complete_bearer || $has_complete_legacy;
+    return $this->credentialResolver->hasSettingsOverride();
   }
 
   /**
@@ -666,19 +647,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   TRUE if incomplete credentials detected, FALSE otherwise.
    */
   protected function hasIncompleteSettingsOverride(): bool {
-    $credentials = Settings::get('cloudflare_purge_credentials');
-    if (!is_array($credentials) || empty($credentials)) {
-      return FALSE;
-    }
-
-    // If we have a complete set, it's not incomplete.
-    if ($this->hasSettingsOverride()) {
-      return FALSE;
-    }
-
-    // If we reach here, settings.php has some credentials
-    // but not a complete set.
-    return TRUE;
+    return $this->credentialResolver->hasIncompleteSettingsOverride();
   }
 
 }

@@ -1,0 +1,5 @@
+# Kept in the repository for maintenance, but excluded from packaged release
+# tarballs (drupal.org / `git archive` honor export-ignore).
+drupal.org.couldflare.homepage.html export-ignore
+docs/TODO.md export-ignore
+docs/release-3.1.0.md export-ignore

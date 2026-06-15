@@ -1,0 +1,55 @@
+/**
+ * Cloudflare Purge in-page navigation (quick links / tabs).
+ * Horizontal tab-style strip printed at the top of every module page.
+ *
+ * Theme-agnostic: no background or text colors are set, so the links inherit
+ * the admin theme's palette (works in both light and dark themes). The only
+ * accent is an orange underline marking the active and hovered tab.
+ */
+
+.cloudflare-purge-tabs-wrapper {
+  margin: 0 0 1.5rem;
+}
+
+ul.cloudflare-purge-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* Neutral, semi-transparent divider that reads on light and dark themes. */
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.cloudflare-purge-tabs__item {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloudflare-purge-tabs__link {
+  display: inline-block;
+  padding: 0.4rem 0.6rem;
+  /* Transparent border keeps the layout stable when the active/hover
+     underline appears. Inherit color and background from the admin theme. */
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  text-decoration: none;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.cloudflare-purge-tabs__link:hover,
+.cloudflare-purge-tabs__link:focus {
+  border-bottom-color: #f38020;
+  color: inherit;
+}
+
+.cloudflare-purge-tabs__item.is-active .cloudflare-purge-tabs__link {
+  border-bottom-color: #f38020;
+  font-weight: 700;
+  cursor: default;
+}

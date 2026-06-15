@@ -23,12 +23,41 @@ use GuzzleHttp\Exception\RequestException;
  *
  * @package Drupal\cloudflare_purge
  */
-final class CloudflarePurgeApi {
+final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
 
   /**
-   * Maximum items per batch request (Cloudflare API limit).
+   * Maximum items per purge request (Cloudflare API limit).
+   *
+   * Cloudflare allows up to 100 operations per purge request for purge by URL,
+   * cache tag, hostname and prefix across all plans (Enterprise allows 500 for
+   * single-file/URL purges). 100 is the safe ceiling for every plan and
+   * operation type, and minimizes request count / rate-limit pressure.
+   *
+   * @see https://developers.cloudflare.com/cache/how-to/purge-cache/
    */
-  public const MAX_BATCH_SIZE = 30;
+  public const MAX_BATCH_SIZE = 100;
+
+  /**
+   * Authoritative Cloudflare purge limits documentation URL.
+   */
+  public const PURGE_DOCS_URL = 'https://developers.cloudflare.com/cache/how-to/purge-cache/';
+
+  /**
+   * Cloudflare purge-by-tags documentation URL (Cache-Tag header limit).
+   */
+  public const PURGE_BY_TAGS_DOCS_URL = 'https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-tags/';
+
+  /**
+   * Date the published Cloudflare limits were last verified (ISO 8601).
+   *
+   * Verified against Cloudflare docs last updated 2026-04-16.
+   */
+  public const LIMITS_LAST_VERIFIED = '2026-06-14';
+
+  /**
+   * Validation pattern for a Cloudflare Zone ID (32-character hex string).
+   */
+  public const ZONE_ID_PATTERN = '/^[a-f0-9]{32}$/i';
 
   /**
    * Cloudflare API base URL.
@@ -101,7 +130,7 @@ final class CloudflarePurgeApi {
    */
   private function isValidZoneId(string $zoneId): bool {
     // Cloudflare Zone IDs are 32-character hex strings.
-    return (bool) preg_match('/^[a-f0-9]{32}$/i', $zoneId);
+    return (bool) preg_match(self::ZONE_ID_PATTERN, $zoneId);
   }
 
   /**
@@ -160,8 +189,12 @@ final class CloudflarePurgeApi {
       $data = $this->safeJsonDecode($body);
 
       if ($code === 200 && ($data['success'] ?? FALSE) === TRUE) {
-        $this->logger->info('Cloudflare cache purged successfully. Payload: @payload', [
-          '@payload' => json_encode($payload, JSON_THROW_ON_ERROR),
+        // Log only the operation type and item count — never the purged URLs,
+        // tags or hostnames, which can contain private paths/query strings or
+        // reveal site structure (and would otherwise be visible on the purge
+        // history page).
+        $this->logger->info('Cloudflare cache purged successfully: @summary.', [
+          '@summary' => $this->summarizePayload($payload),
         ]);
         return new CloudflarePurgeResult(
           success: TRUE,
@@ -212,9 +245,11 @@ final class CloudflarePurgeApi {
           $data = $this->safeJsonDecode($body);
           $errorMessage = $this->extractErrorMessage($data) ?: $errorMessage;
 
+          // Truncate the raw body: Cloudflare error responses can echo back the
+          // offending input (e.g. a URL/prefix) and may be large.
           $this->logger->error('Cloudflare API error. Status: @status, Body: @body', [
             '@status' => $statusCode,
-            '@body' => $body,
+            '@body' => mb_strimwidth($body, 0, 1024, '…'),
           ]);
         }
       }
@@ -235,17 +270,39 @@ final class CloudflarePurgeApi {
         message: 'HTTP request failed: ' . $e->getMessage(),
       );
     }
-    catch (\JsonException $e) {
-      $this->logger->error('Failed to encode payload as JSON: @message', [
-        '@message' => $e->getMessage(),
-      ]);
+  }
 
-      return new CloudflarePurgeResult(
-        success: FALSE,
-        statusCode: 0,
-        message: 'Failed to encode request payload.',
-      );
+  /**
+   * Summarizes a purge payload as operation type + item count, no values.
+   *
+   * Used for logging so the log (and the purge history page) never records the
+   * actual URLs, tags or hostnames that were purged.
+   *
+   * @param array<string, mixed> $payload
+   *   The request payload.
+   *
+   * @return string
+   *   A human-readable summary, e.g. "12 URLs" or "purge everything".
+   */
+  private function summarizePayload(array $payload): string {
+    if (($payload['purge_everything'] ?? FALSE) === TRUE) {
+      return 'purge everything';
     }
+
+    $labels = [
+      'files' => 'URL',
+      'tags' => 'cache tag',
+      'prefixes' => 'prefix',
+      'hosts' => 'hostname',
+    ];
+    foreach ($labels as $key => $label) {
+      if (isset($payload[$key]) && is_array($payload[$key])) {
+        $count = count($payload[$key]);
+        return $count . ' ' . $label . ($count === 1 ? '' : 's');
+      }
+    }
+
+    return 'unknown operation';
   }
 
   /**
@@ -313,36 +370,36 @@ final class CloudflarePurgeApi {
   }
 
   /**
-   * Sanitizes and validates an array of items for API request.
+   * Sanitizes an array of items for a single API request.
+   *
+   * Sanitization (trim/de-dupe) is delegated to the shared ItemBatcher so the
+   * rule matches every other purge path. The per-request size limit is a
+   * defensive backstop: callers are expected to batch via the Purge service,
+   * so receiving more than $maxItems here means a caller did not batch. Rather
+   * than silently discard the overflow (which previously turned an oversized
+   * request into a partial purge with no trace), the dropped items are logged.
    *
    * @param array<int|string, mixed> $items
    *   The items to sanitize.
    * @param int $maxItems
-   *   Maximum number of items allowed.
+   *   Maximum number of items allowed in a single request.
    *
    * @return array<int, string>
-   *   The sanitized items.
+   *   The sanitized items, capped at $maxItems.
    */
   private function sanitizeItems(array $items, int $maxItems = self::MAX_BATCH_SIZE): array {
-    $sanitized = [];
+    $sanitized = ItemBatcher::sanitize($items);
 
-    foreach ($items as $item) {
-      // Skip non-string or empty items.
-      if (!is_string($item)) {
-        continue;
-      }
-
-      $trimmed = trim($item);
-      if ($trimmed !== '') {
-        $sanitized[] = $trimmed;
-      }
+    if (count($sanitized) > $maxItems) {
+      $this->logger->warning('Cloudflare purge request received @count items, exceeding the @max-item per-request limit; @dropped item(s) were dropped. Items should be batched via the Purge service before reaching the API.', [
+        '@count' => count($sanitized),
+        '@max' => $maxItems,
+        '@dropped' => count($sanitized) - $maxItems,
+      ]);
+      $sanitized = array_slice($sanitized, 0, $maxItems);
     }
 
-    // Remove duplicates and re-index.
-    $sanitized = array_values(array_unique($sanitized));
-
-    // Limit to max allowed.
-    return array_slice($sanitized, 0, $maxItems);
+    return $sanitized;
   }
 
   /**
@@ -387,7 +444,9 @@ final class CloudflarePurgeApi {
    * @param string|null $email
    *   The account email.
    * @param array<int|string, mixed> $urls
-   *   Array of URLs to purge (max 30).
+   *   Array of URLs to purge. Cloudflare accepts up to 100 per request (500 on
+   *   Enterprise); larger lists must be batched by the caller. See
+   *   self::MAX_BATCH_SIZE.
    *
    * @return \Drupal\cloudflare_purge\CloudflarePurgeResult
    *   The purge result.
@@ -428,7 +487,9 @@ final class CloudflarePurgeApi {
    * @param string|null $email
    *   The account email.
    * @param array<int|string, mixed> $tags
-   *   Array of cache tags to purge (max 30).
+   *   Array of cache tags to purge. Cloudflare accepts up to 100 per request on
+   *   all plans; larger lists must be batched by the caller. See
+   *   self::MAX_BATCH_SIZE.
    *
    * @return \Drupal\cloudflare_purge\CloudflarePurgeResult
    *   The purge result.
@@ -469,7 +530,9 @@ final class CloudflarePurgeApi {
    * @param string|null $email
    *   The account email.
    * @param array<int|string, mixed> $prefixes
-   *   Array of URL prefixes to purge (max 30).
+   *   Array of URL prefixes to purge. Cloudflare accepts up to 100 per request
+   *   on all plans; larger lists must be batched by the caller. See
+   *   self::MAX_BATCH_SIZE.
    *
    * @return \Drupal\cloudflare_purge\CloudflarePurgeResult
    *   The purge result.
@@ -510,7 +573,9 @@ final class CloudflarePurgeApi {
    * @param string|null $email
    *   The account email.
    * @param array<int|string, mixed> $hostnames
-   *   Array of hostnames to purge (max 30).
+   *   Array of hostnames to purge. Cloudflare accepts up to 100 per request on
+   *   all plans; larger lists must be batched by the caller. See
+   *   self::MAX_BATCH_SIZE.
    *
    * @return \Drupal\cloudflare_purge\CloudflarePurgeResult
    *   The purge result.

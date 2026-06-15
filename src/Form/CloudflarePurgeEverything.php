@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Form;
 
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -82,6 +83,7 @@ final class CloudflarePurgeEverything extends ConfirmFormBase {
 
     $form['#attached']['library'][] = 'cloudflare_purge/form';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
+    $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 
     // Check if credentials are configured.
     if (!$this->purgeService->hasCredentials()) {

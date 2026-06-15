@@ -11,6 +11,28 @@ services:
       - '@http_client'
       - '@logger.channel.cloudflare_purge'
 
+  # Shared cache-tag formatter (filter + prefix + optional hash + size guard).
+  # Single source of truth so the Cache-Tag header and tag-purge calls match.
+  cloudflare_purge.cache_tag_formatter:
+    class: Drupal\cloudflare_purge\Cache\CacheTagFormatter
+    arguments:
+      - '@config.factory'
+      - '@logger.channel.cloudflare_purge'
+
+  # Reads recent purge log entries (watchdog) for the history page.
+  cloudflare_purge.history:
+    class: Drupal\cloudflare_purge\PurgeHistory
+    arguments:
+      - '@database'
+
+  # Single source of truth for credential, auth-method and storage resolution.
+  cloudflare_purge.credential_resolver:
+    class: Drupal\cloudflare_purge\CredentialResolver
+    arguments:
+      - '@config.factory'
+      - '@module_handler'
+      - '@?key.repository'
+
   # Main purge service with credential resolution and messaging.
   cloudflare_purge.purge:
     class: Drupal\cloudflare_purge\Purge
@@ -19,9 +41,9 @@ services:
       - '@logger.channel.cloudflare_purge'
       - '@messenger'
       - '@cloudflare_purge.api'
-      - '@module_handler'
       - '@state'
-      - '@?key.repository'
+      - '@cloudflare_purge.cache_tag_formatter'
+      - '@cloudflare_purge.credential_resolver'
 
   # Cache tag invalidator for automatic Cloudflare purging.
   cloudflare_purge.cache_tag_invalidator:
@@ -31,6 +53,7 @@ services:
       - '@config.factory'
       - '@logger.channel.cloudflare_purge'
       - '@queue'
+      - '@cloudflare_purge.cache_tag_formatter'
     tags:
       # Lower priority so Drupal's internal invalidation runs first.
       - { name: cache_tags_invalidator, priority: -100 }
@@ -41,5 +64,6 @@ services:
     arguments:
       - '@config.factory'
       - '@logger.channel.cloudflare_purge'
+      - '@cloudflare_purge.cache_tag_formatter'
     tags:
       - { name: event_subscriber }

@@ -112,13 +112,17 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
   }
 
   /**
-   * Test form validation with too many URLs.
+   * More than 30 URLs are accepted (the Purge service batches them).
+   *
+   * Intended behavior change: the form no longer rejects above MAX_BATCH_SIZE.
+   * Large lists are split into Cloudflare-sized batches by the Purge service,
+   * so validation must accept them and store all parsed URLs.
    */
-  public function testValidateFormWithTooManyUrls(): void {
+  public function testValidateFormAcceptsMoreThanThirtyUrls(): void {
     $form = $this->createForm();
     $formState = $this->createMock(FormStateInterface::class);
 
-    // Create 31 URLs (max is 30).
+    // 31 URLs: previously rejected, now accepted.
     $urls = [];
     for ($i = 1; $i <= 31; $i++) {
       $urls[] = "https://example.com/page{$i}";
@@ -129,9 +133,12 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
       ->with('urls')
       ->willReturn(implode("\n", $urls));
 
+    $formState->expects($this->never())
+      ->method('setErrorByName');
+
     $formState->expects($this->once())
-      ->method('setErrorByName')
-      ->with('urls', $this->isInstanceOf(TranslatableMarkup::class));
+      ->method('set')
+      ->with('parsed_urls', $urls);
 
     $formArray = [];
     $form->validateForm($formArray, $formState);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Commands;
 
-use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\PrefixNormalizer;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
@@ -101,13 +101,7 @@ final class CloudflarePurgeCommands extends DrushCommands {
       }
     }
 
-    $this->processBatchPurge($allUrls, 'URL', function (array $batch): bool {
-      $result = $this->purgeService->purgeByUrls($batch, FALSE);
-      if (!$result->isSuccess()) {
-        $this->logger()->error('Failed: ' . $result->getMessage());
-      }
-      return $result->isSuccess();
-    });
+    $this->runPurge($allUrls, 'URL', fn(array $items) => $this->purgeService->purgeByUrls($items, FALSE));
   }
 
   /**
@@ -118,7 +112,7 @@ final class CloudflarePurgeCommands extends DrushCommands {
    */
   #[CLI\Command(name: 'cloudflare:purge-tags', aliases: ['cf-purge-tags', 'cfpt'])]
   #[CLI\Argument(name: 'tags', description: 'Cache tags to purge (space or comma separated)')]
-  #[CLI\Usage(name: 'drush cloudflare:purge-tags node-123 taxonomy-term-45', description: 'Purge by cache tags')]
+  #[CLI\Usage(name: 'drush cloudflare:purge-tags node:123 taxonomy_term:45', description: 'Purge by cache tags')]
   #[CLI\Usage(name: 'drush cf-purge-tags "product-1,product-2,product-3"', description: 'Purge comma-separated tags')]
   public function purgeTags(array $tags): void {
     if (!$this->checkCredentials()) {
@@ -132,13 +126,7 @@ final class CloudflarePurgeCommands extends DrushCommands {
       return;
     }
 
-    $this->processBatchPurge($allTags, 'tag', function (array $batch): bool {
-      $result = $this->purgeService->purgeByTags($batch, FALSE);
-      if (!$result->isSuccess()) {
-        $this->logger()->error('Failed: ' . $result->getMessage());
-      }
-      return $result->isSuccess();
-    });
+    $this->runPurge($allTags, 'tag', fn(array $items) => $this->purgeService->purgeByTags($items, FALSE));
   }
 
   /**
@@ -149,8 +137,8 @@ final class CloudflarePurgeCommands extends DrushCommands {
    */
   #[CLI\Command(name: 'cloudflare:purge-prefixes', aliases: ['cf-purge-prefixes', 'cfpp'])]
   #[CLI\Argument(name: 'prefixes', description: 'URL prefixes to purge (space or comma separated)')]
-  #[CLI\Usage(name: 'drush cloudflare:purge-prefixes https://example.com/blog/', description: 'Purge all content under /blog/')]
-  #[CLI\Usage(name: 'drush cf-purge-prefixes "https://example.com/products/,https://example.com/images/"', description: 'Purge multiple prefixes')]
+  #[CLI\Usage(name: 'drush cloudflare:purge-prefixes example.com/blog/', description: 'Purge all content under /blog/')]
+  #[CLI\Usage(name: 'drush cf-purge-prefixes "example.com/products/,example.com/images/"', description: 'Purge multiple prefixes')]
   public function purgePrefixes(array $prefixes): void {
     if (!$this->checkCredentials()) {
       return;
@@ -163,21 +151,16 @@ final class CloudflarePurgeCommands extends DrushCommands {
       return;
     }
 
-    // Validate prefixes are valid URLs.
+    // Validate each prefix has a host. The scheme is optional and stripped by
+    // the purge service, because Cloudflare rejects prefixes with a scheme.
     foreach ($allPrefixes as $prefix) {
-      if (!filter_var($prefix, FILTER_VALIDATE_URL)) {
-        $this->logger()->error('Invalid prefix (must be full URL): ' . $prefix);
+      if (!PrefixNormalizer::isValid($prefix)) {
+        $this->logger()->error('Invalid prefix (must include a host, e.g. example.com/path/): ' . $prefix);
         return;
       }
     }
 
-    $this->processBatchPurge($allPrefixes, 'prefix', function (array $batch): bool {
-      $result = $this->purgeService->purgeByPrefixes($batch, FALSE);
-      if (!$result->isSuccess()) {
-        $this->logger()->error('Failed: ' . $result->getMessage());
-      }
-      return $result->isSuccess();
-    });
+    $this->runPurge($allPrefixes, 'prefix', fn(array $items) => $this->purgeService->purgeByPrefixes($items, FALSE));
   }
 
   /**
@@ -211,13 +194,7 @@ final class CloudflarePurgeCommands extends DrushCommands {
       }
     }
 
-    $this->processBatchPurge($allHostnames, 'hostname', function (array $batch): bool {
-      $result = $this->purgeService->purgeByHostnames($batch, FALSE);
-      if (!$result->isSuccess()) {
-        $this->logger()->error('Failed: ' . $result->getMessage());
-      }
-      return $result->isSuccess();
-    });
+    $this->runPurge($allHostnames, 'hostname', fn(array $items) => $this->purgeService->purgeByHostnames($items, FALSE));
   }
 
   /**
@@ -283,48 +260,60 @@ final class CloudflarePurgeCommands extends DrushCommands {
   }
 
   /**
-   * Processes a batch purge operation with progress logging.
+   * Runs a purge through the service and reports the aggregate result.
+   *
+   * The purge service splits the list into Cloudflare-sized batches itself,
+   * enforces the rate limit per request, and short-circuits on operation-wide
+   * failures (rate limit / authentication). The command therefore passes the
+   * full list in a single call and reports success or the (possibly partial)
+   * failure message, rather than chunking and reporting per batch.
    *
    * @param array<int, string> $items
-   *   The items to purge.
+   *   The items to purge (already parsed and de-duplicated).
    * @param string $itemType
-   *   The type of item (for logging).
-   * @param callable $purgeCallback
-   *   The callback to execute for each batch.
+   *   The type of item (for messages).
+   * @param callable(array<int, string>): \Drupal\cloudflare_purge\CloudflarePurgeResult $purge
+   *   Invokes the matching purge-service method for the full list.
    */
-  private function processBatchPurge(array $items, string $itemType, callable $purgeCallback): void {
-    $count = count($items);
-
-    if ($count > CloudflarePurgeApi::MAX_BATCH_SIZE) {
-      $this->logger()->notice(sprintf(
-        'Processing %d %s(s) in batches of %d.',
-        $count,
-        $itemType,
-        CloudflarePurgeApi::MAX_BATCH_SIZE,
-      ));
-    }
+  private function runPurge(array $items, string $itemType, callable $purge): void {
+    $requested = count($items);
 
     try {
-      $batches = array_chunk($items, CloudflarePurgeApi::MAX_BATCH_SIZE);
-      $totalSuccess = 0;
-      $batchCount = count($batches);
+      $result = $purge($items);
 
-      foreach ($batches as $index => $batch) {
-        $success = $purgeCallback($batch);
-
-        if ($success) {
-          $totalSuccess += count($batch);
-          if ($batchCount > 1) {
-            $this->logger()->info(sprintf('Batch %d/%d: Purged %d %s(s)', $index + 1, $batchCount, count($batch), $itemType));
-          }
-        }
+      if ($result->isSuccess()) {
+        // The service reports how many items it actually purged after
+        // sanitization/de-duplication; fall back to the submitted count if a
+        // result ever omits it.
+        $purged = $result->getPurgedCount() ?? $requested;
+        $this->logger()->success(sprintf('Successfully purged %d %s from Cloudflare.', $purged, $this->pluralize($itemType, $purged)));
       }
-
-      $this->logger()->success(sprintf('Successfully purged %d of %d %s(s).', $totalSuccess, $count, $itemType));
+      else {
+        $this->logger()->error(sprintf('Cloudflare %s purge failed: %s', $itemType, $result->getMessage()));
+      }
     }
     catch (\Exception $e) {
       $this->logger()->error('Exception during ' . $itemType . ' purge: ' . $e->getMessage());
     }
+  }
+
+  /**
+   * Pluralizes a CLI noun for a count (handles "prefix" -> "prefixes").
+   *
+   * @param string $noun
+   *   The singular noun (e.g. "URL", "tag", "prefix", "hostname").
+   * @param int $count
+   *   The item count.
+   *
+   * @return string
+   *   The singular noun for a count of 1, otherwise the plural form.
+   */
+  private function pluralize(string $noun, int $count): string {
+    if ($count === 1) {
+      return $noun;
+    }
+
+    return $noun === 'prefix' ? 'prefixes' : $noun . 's';
   }
 
 }

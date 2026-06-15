@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\EventSubscriber;
 
-use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
+use Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
 use Drupal\Core\Cache\CacheableResponseInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
@@ -30,10 +31,13 @@ final class CloudflarePurgeSubscriber implements EventSubscriberInterface {
    *   The config factory.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger channel.
+   * @param \Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface $cacheTagFormatter
+   *   The cache tag formatter.
    */
   public function __construct(
     private readonly ConfigFactoryInterface $configFactory,
     private readonly LoggerChannelInterface $logger,
+    private readonly CacheTagFormatterInterface $cacheTagFormatter,
   ) {}
 
   /**
@@ -58,7 +62,7 @@ final class CloudflarePurgeSubscriber implements EventSubscriberInterface {
     }
 
     try {
-      $config = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
+      $config = $this->configFactory->get(CloudflarePurgeSettings::NAME);
 
       // Only add headers if auto-purge is enabled.
       if ($config->get('auto_purge_enabled') !== TRUE) {
@@ -82,23 +86,15 @@ final class CloudflarePurgeSubscriber implements EventSubscriberInterface {
         return;
       }
 
-      $tags = $cacheableMetadata->getCacheTags();
+      // Build the header value through the shared formatter: filter to
+      // purgeable tags, apply the prefix/optional hashing wire transform, and
+      // cap the size so the header cannot exceed web-server/CDN limits and
+      // trigger a 5xx on tag-rich pages.
+      $cloudflareTags = $this->cacheTagFormatter->buildHeaderValue($cacheableMetadata->getCacheTags());
 
-      // Filter empty tags.
-      $tags = array_filter($tags, static fn($tag): bool => is_string($tag) && $tag !== '');
-
-      if ($tags === []) {
+      if ($cloudflareTags === NULL) {
         return;
       }
-
-      // Apply prefix if configured.
-      $prefix = $config->get('tag_prefix');
-      if (is_string($prefix) && $prefix !== '') {
-        $tags = array_map(static fn($tag): string => $prefix . $tag, $tags);
-      }
-
-      // Cloudflare expects comma-separated tags.
-      $cloudflareTags = implode(',', $tags);
 
       // Add Cache-Tag header for Cloudflare.
       $response->headers->set('Cache-Tag', $cloudflareTags);

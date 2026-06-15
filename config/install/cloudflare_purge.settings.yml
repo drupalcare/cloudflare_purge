@@ -34,9 +34,23 @@ queue_max_age: 900
 
 tag_prefix: ''
 
+# Cache-Tag header sizing. The header is capped at auto_purge_header_max_bytes
+# so it cannot exceed the ~8 KB limit enforced by web servers/CDNs and trigger
+# a 5xx on tag-rich pages. By default only purgeable (entity-type) tags are
+# emitted; enable hashing to shrink very large headers further. Hashing is
+# applied identically to the header and the purge call so tag purges still
+# match at Cloudflare.
+auto_purge_filter_header_tags: true
+auto_purge_hash_tags: false
+auto_purge_hash_length: 16
+auto_purge_header_max_bytes: 7168
+
 # Rate limiting.
 rate_limit_enabled: false
 rate_limit_per_minute: 60
 
 # Logging.
 logging_enabled: false
+
+# Number of recent purge history entries to show on the history page.
+history_limit: 100

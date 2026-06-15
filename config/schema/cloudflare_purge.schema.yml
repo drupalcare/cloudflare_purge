@@ -89,6 +89,30 @@ cloudflare_purge.settings:
       type: string
       label: 'Cache tag prefix'
 
+    auto_purge_filter_header_tags:
+      type: boolean
+      label: 'Emit only purgeable cache tags in the Cache-Tag header'
+
+    auto_purge_hash_tags:
+      type: boolean
+      label: 'Hash cache tags in the Cache-Tag header and purge calls'
+
+    auto_purge_hash_length:
+      type: integer
+      label: 'Hashed tag length (hex characters)'
+      constraints:
+        Range:
+          min: 6
+          max: 64
+
+    auto_purge_header_max_bytes:
+      type: integer
+      label: 'Maximum Cache-Tag header size in bytes'
+      constraints:
+        Range:
+          min: 1024
+          max: 16384
+
     # Rate limiting settings.
     rate_limit_enabled:
       type: boolean
@@ -106,6 +130,14 @@ cloudflare_purge.settings:
     logging_enabled:
       type: boolean
       label: 'Enable detailed logging'
+
+    history_limit:
+      type: integer
+      label: 'Number of purge history entries to display'
+      constraints:
+        Range:
+          min: 1
+          max: 1000
 
     # Legacy setting (deprecated, migrated in update hook).
     use_bearer_token:

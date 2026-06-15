@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Form;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
+use Drupal\cloudflare_purge\LineInputParser;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormBase;
@@ -15,8 +17,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Form for purging URLs from Cloudflare cache.
  *
- * Supports purging one or more URLs (up to 30) in a single request.
- * URLs are validated to ensure they are properly formatted.
+ * Supports purging one or more URLs. Long lists are sent to Cloudflare in
+ * batches of CloudflarePurgeApi::MAX_BATCH_SIZE automatically by the Purge
+ * service. URLs are validated to ensure they are properly formatted.
  *
  * @package Drupal\cloudflare_purge\Form
  */
@@ -54,10 +57,11 @@ final class CloudflarePurgeByUrl extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $form['#attached']['library'][] = 'cloudflare_purge/form';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
+    $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 
     $form['description'] = [
       '#type' => 'markup',
-      '#markup' => '<p>' . $this->t('Purge specific URLs from the Cloudflare cache. Enter one or more URLs (one per line). You can purge up to @max URLs per request.', [
+      '#markup' => '<p>' . $this->t('Purge specific URLs from the Cloudflare cache. Enter one or more URLs, one per line. Long lists are sent to Cloudflare in batches of @max automatically.', [
         '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
       ]) . '</p>',
     ];
@@ -66,9 +70,7 @@ final class CloudflarePurgeByUrl extends FormBase {
       '#type' => 'textarea',
       '#title' => $this->t('URLs to Purge'),
       '#required' => TRUE,
-      '#description' => $this->t('Enter fully qualified URLs including the scheme (https://). One URL per line. Maximum @max URLs per request.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-      ]),
+      '#description' => $this->t('Enter fully qualified URLs including the scheme (https://). One URL per line.'),
       '#placeholder' => "https://example.com/page\nhttps://example.com/another-page\nhttps://example.com/images/logo.png",
       '#rows' => 8,
     ];
@@ -85,7 +87,7 @@ final class CloudflarePurgeByUrl extends FormBase {
       '<li>' . $this->t('Query strings matter: <code>?v=1</code> and <code>?v=2</code> are cached separately.') . '</li>' .
       '<li>' . $this->t('For entire directories, use <strong>Purge by Prefix</strong> instead.') . '</li>' .
       '<li>' . $this->t('For tagged content, use <strong>Purge by Cache Tag</strong>.') . '</li>' .
-      '<li>' . $this->t('For more than @max URLs, submit multiple requests or use Drush.', [
+      '<li>' . $this->t('Long lists are purged in batches of @max automatically; if the rate limit is reached, the remainder can be submitted again in a moment.', [
         '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
       ]) . '</li>' .
       '</ul>',
@@ -127,14 +129,6 @@ final class CloudflarePurgeByUrl extends FormBase {
 
     if ($urls === []) {
       $form_state->setErrorByName('urls', $this->t('Please enter at least one valid URL.'));
-      return;
-    }
-
-    if (count($urls) > CloudflarePurgeApi::MAX_BATCH_SIZE) {
-      $form_state->setErrorByName('urls', $this->t('Maximum @max URLs per request. You entered @count. Please remove some URLs or submit multiple requests.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-        '@count' => count($urls),
-      ]));
       return;
     }
 
@@ -190,21 +184,7 @@ final class CloudflarePurgeByUrl extends FormBase {
    *   Array of cleaned URL strings.
    */
   private function parseUrls(string $input): array {
-    $lines = preg_split('/\r\n|\r|\n/', $input);
-
-    if ($lines === FALSE) {
-      return [];
-    }
-
-    $urls = [];
-    foreach ($lines as $line) {
-      $url = trim($line);
-      if ($url !== '') {
-        $urls[] = $url;
-      }
-    }
-
-    return array_values(array_unique($urls));
+    return LineInputParser::parse($input);
   }
 
 }

@@ -25,12 +25,17 @@ final class CloudflarePurgeResult {
    *   A human-readable message about the result.
    * @param array<string, mixed>|null $data
    *   Optional raw response data from the API.
+   * @param int|null $purgedCount
+   *   Number of items actually purged, after sanitization/de-duplication, when
+   *   known. NULL when not applicable (e.g. purge-everything, or a result
+   *   produced directly by the low-level API client).
    */
   public function __construct(
     private readonly bool $success,
     private readonly int $statusCode,
     private readonly string $message,
     private readonly ?array $data = NULL,
+    private readonly ?int $purgedCount = NULL,
   ) {}
 
   /**
@@ -61,6 +66,17 @@ final class CloudflarePurgeResult {
    */
   public function getMessage(): string {
     return $this->message;
+  }
+
+  /**
+   * Gets the number of items purged, when known.
+   *
+   * @return int|null
+   *   The count of items the purge acted on after sanitization, or NULL when
+   *   not applicable.
+   */
+  public function getPurgedCount(): ?int {
+    return $this->purgedCount;
   }
 
   /**

@@ -34,3 +34,8 @@ parameters:
     -
       message: '#Method.*::determinePurgeType\(\) never returns string so it can be removed from the return type#'
       reportUnmatched: false
+    # False positive: PHPUnit's CoversMethod is declared IS_REPEATABLE, but
+    # PHPStan's bundled PHPUnit stub marks it non-repeatable.
+    -
+      message: '#Attribute class PHPUnit\\Framework\\Attributes\\CoversMethod is not repeatable#'
+      reportUnmatched: false

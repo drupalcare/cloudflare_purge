@@ -8,10 +8,12 @@ use Drupal\Component\Render\FormattableMarkup;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Database\Connection;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Url;
+use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
+use Drupal\cloudflare_purge\PurgeHistoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -29,14 +31,14 @@ final class CloudflarePurgeController extends ControllerBase {
    *
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger channel.
-   * @param \Drupal\Core\Database\Connection $database
-   *   The database connection.
+   * @param \Drupal\cloudflare_purge\PurgeHistoryInterface $history
+   *   The purge-history reader.
    * @param \Drupal\Core\Datetime\DateFormatterInterface $dateFormatter
    *   The date formatter service.
    */
   public function __construct(
     private readonly LoggerChannelInterface $logger,
-    private readonly Connection $database,
+    private readonly PurgeHistoryInterface $history,
     private readonly DateFormatterInterface $dateFormatter,
   ) {}
 
@@ -46,7 +48,7 @@ final class CloudflarePurgeController extends ControllerBase {
   public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('logger.channel.cloudflare_purge'),
-      $container->get('database'),
+      $container->get('cloudflare_purge.history'),
       $container->get('date.formatter'),
     );
   }
@@ -67,10 +69,20 @@ final class CloudflarePurgeController extends ControllerBase {
     }
 
     $build = [];
+    $build['cloudflare_purge_nav'] = CloudflarePurgeLinks::build('cloudflare_purge.history');
+
+    // The page reflects live log data, so it must never be cached.
+    $build['#cache']['max-age'] = 0;
+
+    $config = $this->config('cloudflare_purge.settings');
+    $loggingEnabled = (bool) $config->get('logging_enabled');
+    // Clamp to the schema-allowed range as a defensive measure.
+    $limit = max(1, min(1000, (int) ($config->get('history_limit') ?? 100)));
 
     $build['description'] = [
       '#type' => 'markup',
-      '#markup' => '<p>' . $this->t('Recent Cloudflare cache purge operations from the Drupal log. <a href=":settings">Enable detailed logging</a> in Auto-Purge Settings to see more entries.', [
+      '#markup' => '<p>' . $this->t('The most recent Cloudflare cache purge operations (up to @limit) from the Drupal log. <a href=":settings">Enable detailed logging</a> in Auto-Purge Settings to record successful operations and to change how many entries appear here.', [
+        '@limit' => $limit,
         ':settings' => Url::fromRoute('cloudflare_purge.settings')->toString(),
       ]) . '</p>',
     ];
@@ -86,28 +98,18 @@ final class CloudflarePurgeController extends ControllerBase {
     // Query watchdog for cloudflare_purge entries.
     try {
       // Check if dblog module is enabled and table exists.
-      if (!$this->database->schema()->tableExists('watchdog')) {
+      if (!$this->history->isAvailable()) {
         $build['error'] = [
           '#type' => 'markup',
-          '#markup' => '<p>' . $this->t('Database logging is not enabled. Enable the Database Logging module to track purge history.') . '</p>',
+          '#markup' => '<p>' . $this->t('Purge history requires the core <strong>Database Logging</strong> (dblog) module, which is not enabled. Enable it to record and view purge operations here.') . '</p>',
         ];
         return $build;
       }
 
-      $query = $this->database->select('watchdog', 'w')
-        ->fields('w', ['wid', 'uid', 'type', 'message', 'variables', 'severity', 'timestamp'])
-        ->condition('w.type', 'cloudflare_purge')
-        ->orderBy('w.timestamp', 'DESC')
-        ->range(0, 100)
-        ->extend('Drupal\Core\Database\Query\TableSortExtender');
-
-      $results = $query->execute();
+      $results = $this->history->getRecentEntries($limit);
 
       if ($results === NULL) {
-        $build['empty'] = [
-          '#type' => 'markup',
-          '#markup' => '<p>' . $this->t('No purge history found.') . '</p>',
-        ];
+        $build['empty'] = $this->buildEmptyHistoryMessage($loggingEnabled);
         return $build;
       }
 
@@ -145,10 +147,7 @@ final class CloudflarePurgeController extends ControllerBase {
       }
 
       if ($rows === []) {
-        $build['empty'] = [
-          '#type' => 'markup',
-          '#markup' => '<p>' . $this->t('No purge history found. Enable detailed logging to track purge operations.') . '</p>',
-        ];
+        $build['empty'] = $this->buildEmptyHistoryMessage($loggingEnabled);
       }
       else {
         $build['table'] = [
@@ -172,6 +171,172 @@ final class CloudflarePurgeController extends ControllerBase {
     }
 
     return $build;
+  }
+
+  /**
+   * Builds the "no history yet" message render array.
+   *
+   * The wording depends on whether detailed logging is enabled, because
+   * successful purge operations are only recorded when it is on.
+   *
+   * @param bool $loggingEnabled
+   *   Whether detailed logging is currently enabled.
+   *
+   * @return array<string, mixed>
+   *   A render array for the empty-state message.
+   */
+  private function buildEmptyHistoryMessage(bool $loggingEnabled): array {
+    if ($loggingEnabled) {
+      $message = $this->t('No purge operations have been recorded yet. They will appear here as purges run.');
+    }
+    else {
+      $message = $this->t('No purge history yet. Successful purge operations are only recorded when detailed logging is enabled — <a href=":settings">enable detailed logging</a> in Auto-Purge Settings. Errors are always logged.', [
+        ':settings' => Url::fromRoute('cloudflare_purge.settings')->toString(),
+      ]);
+    }
+
+    return [
+      '#type' => 'markup',
+      '#markup' => '<p>' . $message . '</p>',
+    ];
+  }
+
+  /**
+   * Displays the Cloudflare plans & limits reference page.
+   *
+   * Read-only reference of Cloudflare's purge limits and rate limits by plan.
+   * Every value links to its authoritative Cloudflare source and shows the date
+   * it was last verified, so maintainers can confirm currency at a glance.
+   *
+   * @return array<string, mixed>
+   *   A render array for the limits reference page.
+   */
+  public function limits(): array {
+    $docs_url = CloudflarePurgeApi::PURGE_DOCS_URL;
+    $tags_url = CloudflarePurgeApi::PURGE_BY_TAGS_DOCS_URL;
+    $changelog_url = 'https://developers.cloudflare.com/cache/changelog/';
+    $verified = $this->dateFormatter->format(
+      (int) strtotime(CloudflarePurgeApi::LIMITS_LAST_VERIFIED),
+      'custom',
+      'F j, Y',
+    );
+
+    $build = [];
+    $build['cloudflare_purge_nav'] = CloudflarePurgeLinks::build('cloudflare_purge.limits');
+
+    $build['intro'] = [
+      '#type' => 'markup',
+      '#markup' => '<p>' . $this->t('Cloudflare cache purge limits and rate limits by plan. Each value below is sourced from Cloudflare\'s official documentation and was last verified on <strong>@date</strong>. Cloudflare can change these at any time — confirm against the <a href=":docs" target="_blank" rel="noopener">authoritative documentation</a> before relying on a specific number.', [
+        '@date' => $verified,
+        ':docs' => $docs_url,
+      ]) . '</p>',
+    ];
+
+    // Per-request operation limits.
+    $build['per_request_heading'] = [
+      '#type' => 'markup',
+      '#markup' => '<h3>' . $this->t('Maximum operations per request') . '</h3>',
+    ];
+    $build['per_request'] = [
+      '#type' => 'table',
+      '#header' => [
+        $this->t('Purge type'),
+        $this->t('Free'),
+        $this->t('Pro'),
+        $this->t('Business'),
+        $this->t('Enterprise'),
+      ],
+      '#rows' => [
+        [$this->t('URLs (single-file)'), '100', '100', '100', '500'],
+        [$this->t('Cache tags'), '100', '100', '100', '100'],
+        [$this->t('Prefixes'), '100', '100', '100', '100'],
+        [$this->t('Hostnames'), '100', '100', '100', '100'],
+      ],
+    ];
+    $build['per_request_source'] = $this->sourceLine($docs_url, $verified);
+
+    // Request rate limits (tag/prefix/hostname/purge everything).
+    $build['rate_heading'] = [
+      '#type' => 'markup',
+      '#markup' => '<h3>' . $this->t('Request rate — tag, prefix, hostname &amp; purge everything') . '</h3>',
+    ];
+    $build['rate'] = [
+      '#type' => 'table',
+      '#header' => [
+        $this->t('Plan'),
+        $this->t('Request rate'),
+        $this->t('Bucket size'),
+        $this->t('Max ops/request'),
+      ],
+      '#rows' => [
+        [$this->t('Free'), $this->t('5 / minute'), '25', '100'],
+        [$this->t('Pro'), $this->t('5 / second'), '25', '100'],
+        [$this->t('Business'), $this->t('10 / second'), '50', '100'],
+        [$this->t('Enterprise'), $this->t('50 / second'), '500', '100'],
+      ],
+    ];
+    $build['rate_source'] = $this->sourceLine($docs_url, $verified);
+
+    // Single-file URL purge rate limits.
+    $build['url_rate_heading'] = [
+      '#type' => 'markup',
+      '#markup' => '<h3>' . $this->t('Request rate — single-file URL purge') . '</h3>',
+    ];
+    $build['url_rate'] = [
+      '#type' => 'table',
+      '#header' => [
+        $this->t('Plan'),
+        $this->t('Rate'),
+        $this->t('Max URLs/request'),
+      ],
+      '#rows' => [
+        [$this->t('Free'), $this->t('800 URLs / second'), '100'],
+        [$this->t('Pro'), $this->t('1,500 URLs / second'), '100'],
+        [$this->t('Business'), $this->t('1,500 URLs / second'), '100'],
+        [$this->t('Enterprise'), $this->t('3,000 URLs / second'), '500'],
+      ],
+    ];
+    $build['url_rate_source'] = $this->sourceLine($docs_url, $verified);
+
+    // Availability and Cache-Tag header notes.
+    $build['notes'] = [
+      '#type' => 'markup',
+      '#markup' => '<h3>' . $this->t('Other facts') . '</h3>'
+      . '<ul>'
+      . '<li>' . $this->t('All purge methods (URL, tag, prefix, hostname, purge everything) are available on <strong>all plans including Free</strong>, since <strong>April 3, 2025</strong>. (<a href=":url" target="_blank" rel="noopener">Cloudflare changelog</a>)', [':url' => $changelog_url]) . '</li>'
+      . '<li>' . $this->t('The aggregate <code>Cache-Tag</code> response header may not exceed <strong>16 KB</strong> after the header field name (roughly 1,000 tags). This module defaults to a smaller cap to stay below common web server and proxy header limits. (<a href=":url" target="_blank" rel="noopener">Purge by cache tags</a>)', [':url' => $tags_url]) . '</li>'
+      . '<li>' . $this->t('This module batches larger lists automatically on every entry point (UI, Drush, and auto-purge), using a safe ceiling of 100 operations per request.') . '</li>'
+      . '</ul>',
+    ];
+
+    $build['footer'] = [
+      '#type' => 'markup',
+      '#markup' => '<p><em>' . $this->t('Last verified on @date against Cloudflare documentation last updated April 16, 2026.', ['@date' => $verified]) . '</em></p>',
+    ];
+
+    return $build;
+  }
+
+  /**
+   * Builds a small "source / last verified" line for a reference table.
+   *
+   * @param string $url
+   *   The authoritative Cloudflare documentation URL.
+   * @param string $verified
+   *   The human-readable date the value was last verified.
+   *
+   * @return array<string, mixed>
+   *   A render array for the source line.
+   */
+  private function sourceLine(string $url, string $verified): array {
+    return [
+      '#type' => 'markup',
+      '#markup' => '<p class="description"><small>' . $this->t('Source: <a href=":url" target="_blank" rel="noopener">@url</a> · Last verified @date.', [
+        ':url' => $url,
+        '@url' => $url,
+        '@date' => $verified,
+      ]) . '</small></p>',
+    ];
   }
 
   /**

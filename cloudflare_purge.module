@@ -29,7 +29,7 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
       $output .= '<h2>' . t('Features') . '</h2>';
       $output .= '<ul>';
       $output .= '<li>' . t('<strong>Purge Everything:</strong> Clear the entire Cloudflare cache for your zone.') . '</li>';
-      $output .= '<li>' . t('<strong>Purge by URL:</strong> Purge specific URLs (up to 30 per request).') . '</li>';
+      $output .= '<li>' . t('<strong>Purge by URL:</strong> Purge specific URLs (large lists are batched automatically, up to 100 per request).') . '</li>';
       $output .= '<li>' . t('<strong>Purge by Cache Tag:</strong> Purge content by cache tags (all plans).') . '</li>';
       $output .= '<li>' . t('<strong>Purge by Prefix:</strong> Purge all content under a URL prefix (all plans).') . '</li>';
       $output .= '<li>' . t('<strong>Purge by Hostname:</strong> Purge all content for specific hostnames (all plans).') . '</li>';

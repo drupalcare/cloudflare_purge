@@ -71,3 +71,11 @@ cloudflare_purge.history:
   route_name: cloudflare_purge.history
   parent: cloudflare_purge.admin
   weight: 90
+
+# Cloudflare plans & limits reference.
+cloudflare_purge.limits:
+  title: 'Plans & Limits'
+  description: 'Cloudflare purge limits and rate limits by plan, with sources.'
+  route_name: cloudflare_purge.limits
+  parent: cloudflare_purge.admin
+  weight: 100

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Form;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
+use Drupal\cloudflare_purge\LineInputParser;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -61,10 +63,11 @@ final class CloudflarePurgeByHostname extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $form['#attached']['library'][] = 'cloudflare_purge/form';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
+    $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 
     $form['description'] = [
       '#type' => 'markup',
-      '#markup' => '<p>' . $this->t('Purge all cached content for specific hostnames. This invalidates all cached assets for the specified domains. You can purge up to @max hostnames per request.', [
+      '#markup' => '<p>' . $this->t('Purge all cached content for specific hostnames. This invalidates all cached assets for the specified domains. Long lists are sent to Cloudflare in batches of @max automatically.', [
         '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
       ]) . '</p>',
     ];
@@ -81,9 +84,7 @@ final class CloudflarePurgeByHostname extends FormBase {
       '#type' => 'textarea',
       '#title' => $this->t('Hostnames'),
       '#required' => TRUE,
-      '#description' => $this->t('Enter hostnames to purge, one per line. Do not include the protocol (http/https). Maximum @max hostnames per request.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-      ]),
+      '#description' => $this->t('Enter hostnames to purge, one per line. Do not include the protocol (http/https).'),
       '#placeholder' => "www.example.com\nimages.example.com\ncdn.example.com",
       '#rows' => 8,
     ];
@@ -139,14 +140,6 @@ final class CloudflarePurgeByHostname extends FormBase {
 
     if ($hostnames === []) {
       $form_state->setErrorByName('hostnames', $this->t('Please enter at least one hostname.'));
-      return;
-    }
-
-    if (count($hostnames) > CloudflarePurgeApi::MAX_BATCH_SIZE) {
-      $form_state->setErrorByName('hostnames', $this->t('Maximum @max hostnames per request. You entered @count.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-        '@count' => count($hostnames),
-      ]));
       return;
     }
 
@@ -209,21 +202,7 @@ final class CloudflarePurgeByHostname extends FormBase {
    *   Array of cleaned hostname strings.
    */
   private function parseHostnames(string $input): array {
-    $lines = preg_split('/\r\n|\r|\n/', $input);
-
-    if ($lines === FALSE) {
-      return [];
-    }
-
-    $hostnames = [];
-    foreach ($lines as $line) {
-      $hostname = strtolower(trim($line));
-      if ($hostname !== '') {
-        $hostnames[] = $hostname;
-      }
-    }
-
-    return array_values(array_unique($hostnames));
+    return LineInputParser::parse($input, TRUE);
   }
 
   /**

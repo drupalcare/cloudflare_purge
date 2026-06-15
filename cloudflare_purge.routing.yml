@@ -87,3 +87,25 @@ cloudflare_purge.history:
     _permission: 'view cloudflare purge history'
   options:
     _admin_route: TRUE
+
+# Cloudflare plans & limits reference page.
+cloudflare_purge.limits:
+  path: '/admin/config/cloudflare-purge/limits'
+  defaults:
+    _controller: '\Drupal\cloudflare_purge\Controller\CloudflarePurgeController::limits'
+    _title: 'Plans & Limits'
+  requirements:
+    _permission: 'administer cloudflare purge+cloudflare purge+view cloudflare purge history'
+  options:
+    _admin_route: TRUE
+
+# Clear purge history confirmation form.
+cloudflare_purge.history_clear:
+  path: '/admin/config/cloudflare-purge/history/clear'
+  defaults:
+    _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeClearHistory'
+    _title: 'Clear purge history'
+  requirements:
+    _permission: 'administer cloudflare purge'
+  options:
+    _admin_route: TRUE

@@ -1,0 +1,8 @@
+# Cloudflare Purge module local actions.
+
+# "Clear history" action button shown on the Purge History page.
+cloudflare_purge.history_clear:
+  title: 'Clear history'
+  route_name: cloudflare_purge.history_clear
+  appears_on:
+    - cloudflare_purge.history

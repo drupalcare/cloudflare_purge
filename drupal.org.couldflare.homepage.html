@@ -13,7 +13,7 @@
 <h2><strong>Key Features</strong></h2>
 <ul>
   <li><strong>Purge Everything</strong> – Clear all cached content with confirmation dialog</li>
-  <li><strong>Purge by URL</strong> – Clear one or more specific URLs (up to 30 per request)</li>
+  <li><strong>Purge by URL</strong> – Clear one or more specific URLs (large lists are batched automatically, up to 100 per request)</li>
   <li><strong>Purge by Cache Tag</strong> – Clear content by cache tags (all plans)</li>
   <li><strong>Purge by Prefix</strong> – Clear all content under URL prefixes (all plans)</li>
   <li><strong>Purge by Hostname</strong> – Clear all content for specific hostnames (all plans)</li>
@@ -35,21 +35,19 @@
 </ul>
 
 <h2><strong>Latest Version Highlights</strong></h2>
-<p><strong>Comprehensive purge operations with Drupal 10.3+ and 11 compatibility!</strong></p>
+<p><strong>Hardened, batch-aware cache purging for Drupal 10.3+ and 11.</strong></p>
 <ul>
-  <li><strong>Drupal 10.3+ and 11 compatible</strong></li>
-  <li><strong>PHP 8.1+ with strict typing</strong> throughout</li>
-  <li><strong>All Cloudflare purge methods</strong> – URL, Tag, Prefix, Hostname, Everything</li>
-  <li><strong>Automatic cache tag integration</strong> with Drupal's cache system</li>
-  <li><strong>Queue support</strong> for high-traffic sites, with TTL-based discard for rate-limited backlogs</li>
-  <li><strong>Full dependency injection</strong> following Drupal coding standards</li>
-  <li><strong>Modern authentication system</strong> with Bearer Token as default</li>
-  <li><strong>Flexible storage methods</strong> – Plain text or Key module integration</li>
-  <li><strong>Enhanced security</strong> with three-tier credential resolution</li>
-  <li><strong>Drush 13 commands</strong> with PHP 8 attributes for all operations</li>
-  <li><strong>Improved error handling</strong> and logging</li>
-  <li><strong>Configuration schema</strong> for proper validation</li>
-  <li><strong>Clean uninstall</strong> removes all configuration</li>
+  <li><strong>Automatic batching of large purges</strong> – Submit any number of URLs, tags, prefixes or hostnames from the UI, Drush or auto-purge; the module splits them into Cloudflare-sized requests (up to 100 each) and reports exactly how many were purged. The forms no longer reject lists larger than the per-request limit.</li>
+  <li><strong>Operation-wide short-circuit</strong> – A multi-batch purge keeps going past a single failed batch, but stops immediately on operation-wide failures (a reached rate limit, a Cloudflare <code>429</code>, or a <code>401/403</code> authentication error) instead of hammering the API, and the result still reports the correct status.</li>
+  <li><strong>Oversized <code>Cache-Tag</code> header fix (#3598876)</strong> – Tag-rich pages (Layout Builder, large listings) no longer emit an unbounded header that could exceed the ~8&nbsp;KB web-server/CDN limit and cause a silent 5xx. The header is filtered to purgeable tags, optionally hashed, and size-capped, with the header and the purge call always using the same tags.</li>
+  <li><strong>Purge by prefix scheme fix (error 1119)</strong> – Prefixes are accepted with or without a scheme and normalized to <code>host/path</code> before the API call.</li>
+  <li><strong>Privacy-conscious logging</strong> – Successful purges log only the operation type and item count, never the actual URLs, tags or hostnames.</li>
+  <li><strong>Single source of truth</strong> – Shared services for credential resolution, cache-tag formatting and batching keep behavior consistent across every entry point.</li>
+  <li><strong>Drupal 10.3+ and 11 compatible</strong>, <strong>PHP 8.1+ with strict typing</strong>, full dependency injection, configuration schema, PHPStan level&nbsp;5 clean, and extensive unit/kernel test coverage.</li>
+  <li><strong>Queue support</strong> for high-traffic sites, with TTL-based discard for rate-limited backlogs.</li>
+  <li><strong>Modern authentication</strong> with Bearer Token as default, plus legacy API Key, Key module and <code>settings.php</code> credential storage.</li>
+  <li><strong>Drush 13 commands</strong> with PHP 8 attributes for all operations.</li>
+  <li><strong>Clean uninstall</strong> removes all configuration.</li>
 </ul>
 
 <h2><strong>Purge Operations</strong></h2>
@@ -69,12 +67,12 @@
     </tr>
     <tr>
       <td><strong>Purge by URL</strong></td>
-      <td>Clear 1-30 specific URLs per request</td>
+      <td>Clear specific URLs (batched, up to 100 per request)</td>
       <td>Free</td>
     </tr>
     <tr>
       <td><strong>Purge by Cache Tag</strong></td>
-      <td>Clear content by cache tags (up to 30 tags)</td>
+      <td>Clear content by cache tags (batched, up to 100 per request)</td>
       <td>All plans*</td>
     </tr>
     <tr>
@@ -310,15 +308,15 @@ drush cloudflare:purge-all
 drush cf-purge-all    # alias
 drush cfpa            # short alias
 
-# Purge specific URL(s)
+# Purge specific URLs
 drush cloudflare:purge-url https://example.com/page
 drush cf-purge-url https://example.com/a https://example.com/b
 drush cfpu "https://example.com/a,https://example.com/b"
 
 # Purge by cache tags (all plans)
-drush cloudflare:purge-tags node-123 taxonomy-term-45
-drush cf-purge-tags "product-1,product-2,product-3"
-drush cfpt node-123
+drush cloudflare:purge-tags node:123 taxonomy_term:45
+drush cf-purge-tags "node:1,node:2,user:5"
+drush cfpt node:123
 
 # Purge by prefix (all plans)
 drush cloudflare:purge-prefixes https://example.com/blog/
@@ -337,7 +335,7 @@ drush cfs</code></pre>
 
 <p><strong>Example output:</strong></p>
 <pre><code>$ drush cloudflare:purge-url https://example.com/node/1
- [success] Successfully purged 1 of 1 URL(s).
+ [success] Successfully purged 1 URL from Cloudflare.
 
 $ drush cloudflare:status
  [success] Cloudflare credentials are configured.</code></pre>
@@ -362,26 +360,27 @@ $ drush cloudflare:status
   <tbody>
     <tr>
       <td>URLs per request</td>
-      <td>30</td>
+      <td>100</td>
     </tr>
     <tr>
       <td>Cache tags per request</td>
-      <td>30</td>
+      <td>100</td>
     </tr>
     <tr>
       <td>Prefixes per request</td>
-      <td>30</td>
+      <td>100</td>
     </tr>
     <tr>
       <td>Hostnames per request</td>
-      <td>30</td>
+      <td>100</td>
     </tr>
     <tr>
-      <td>API calls (Free tier)</td>
-      <td>1,000/day</td>
+      <td>Rate limit (Free tier)</td>
+      <td>5 requests/minute</td>
     </tr>
   </tbody>
 </table>
+<p><small>Per-request limits apply to URL, cache-tag, prefix and hostname purges across all plans (Enterprise allows up to 500 URLs per single-file purge).</small></p>
 
 <h3>Rate Limits by Plan (Tag/Prefix/Hostname/Purge Everything)</h3>
 <table>
@@ -420,7 +419,7 @@ $ drush cloudflare:status
     </tr>
   </tbody>
 </table>
-<p>The module automatically batches larger requests when using Drush commands.</p>
+<p>The module automatically batches larger requests on every entry point — the web UI, Drush commands, and automatic cache-tag purging.</p>
 <p><strong>Important:</strong> Rate limits are subject to change. For the latest information, see <a href="https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits" target="_blank">Cloudflare's official documentation</a>. <em>(Last verified: January 2026)</em></p>
 
 <h2><strong>Security</strong></h2>
@@ -482,7 +481,7 @@ $ drush cloudflare:status
 <ul>
   <li>Check Bearer Token has <strong>Cache Purge</strong> permission in Cloudflare dashboard</li>
   <li>Verify Zone ID is correct (32-character hexadecimal string)</li>
-  <li>Check for rate limit errors (Free: 1,000 API calls per day)</li>
+  <li>Check for rate limit errors (Free: 5 requests/minute)</li>
   <li>Review Drupal logs for detailed error messages</li>
 </ul>
 

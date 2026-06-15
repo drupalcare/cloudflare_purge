@@ -150,43 +150,16 @@ function cloudflare_purge_requirements(string $phase): array {
  */
 function cloudflare_purge_install(): void {
   try {
-    $configFactory = \Drupal::configFactory();
-    $moduleHandler = \Drupal::moduleHandler();
-
-    // Config is in config/optional so it may not exist yet if the module
-    // was installed via an install profile that already provided the config.
-    // Ensure defaults are present without overwriting existing values.
-    $config = $configFactory->getEditable('cloudflare_purge.settings');
-
-    $defaults = [
-      'auth_method' => 'bearer',
-      'storage_method' => $moduleHandler->moduleExists('key') ? 'key' : 'plain',
-      'zone_id' => '',
-      'email' => '',
-      'authorization' => '',
-      'bearer_token' => '',
-      'zone_id_key' => '',
-      'email_key' => '',
-      'authorization_key' => '',
-      'bearer_token_key' => '',
-      'auto_purge_enabled' => FALSE,
-      'auto_purge_entity_types' => ['node', 'taxonomy_term', 'media'],
-      'auto_purge_use_queue' => FALSE,
-      'queue_max_age_enabled' => FALSE,
-      'queue_max_age' => 900,
-      'tag_prefix' => '',
-      'rate_limit_enabled' => FALSE,
-      'rate_limit_per_minute' => 60,
-      'logging_enabled' => FALSE,
-    ];
-
-    foreach ($defaults as $key => $default) {
-      if ($config->get($key) === NULL) {
-        $config->set($key, $default);
+    // Default configuration ships in config/install and is imported
+    // automatically. The storage method default is dynamic (prefer the Key
+    // module when available), which static config cannot express, so adjust it
+    // here on fresh installs only.
+    if (\Drupal::moduleHandler()->moduleExists('key')) {
+      $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+      if ($config->get('storage_method') === 'plain') {
+        $config->set('storage_method', 'key')->save();
       }
     }
-
-    $config->save();
 
     \Drupal::messenger()->addStatus(t('Cloudflare Purge has been installed. Please <a href=":url">configure your credentials</a>.', [
       ':url' => '/admin/config/cloudflare-purge/credentials',
@@ -337,5 +310,53 @@ function cloudflare_purge_update_9004(): string {
   }
   catch (\Exception $e) {
     return (string) t('Error adding queue TTL configuration: @message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Add Cache-Tag header sizing configuration (filtering, hashing, size cap).
+ */
+function cloudflare_purge_update_9005(): string {
+  try {
+    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+
+    $newSettings = [
+      'auto_purge_filter_header_tags' => TRUE,
+      'auto_purge_hash_tags' => FALSE,
+      'auto_purge_hash_length' => 16,
+      'auto_purge_header_max_bytes' => 7168,
+    ];
+
+    foreach ($newSettings as $key => $default) {
+      if ($config->get($key) === NULL) {
+        $config->set($key, $default);
+      }
+    }
+
+    $config->save();
+
+    return (string) t('Added Cache-Tag header sizing configuration (header capped at 7168 bytes, hashing disabled by default).');
+  }
+  catch (\Exception $e) {
+    return (string) t('Error adding Cache-Tag header sizing configuration: @message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Add the configurable purge history display limit (default 100).
+ */
+function cloudflare_purge_update_9006(): string {
+  try {
+    $config = \Drupal::configFactory()->getEditable('cloudflare_purge.settings');
+
+    if ($config->get('history_limit') === NULL) {
+      $config->set('history_limit', 100);
+      $config->save();
+    }
+
+    return (string) t('Added purge history display limit configuration (default 100 entries).');
+  }
+  catch (\Exception $e) {
+    return (string) t('Error adding purge history limit configuration: @message', ['@message' => $e->getMessage()]);
   }
 }

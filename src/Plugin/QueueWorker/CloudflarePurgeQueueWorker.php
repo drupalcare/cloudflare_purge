@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Plugin\QueueWorker;
 
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
-use Drupal\cloudflare_purge\Form\CloudflarePurgeForm;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
@@ -125,7 +125,7 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
 
     // Discard items older than the configured TTL. The Cloudflare edge cache
     // would have expired the content anyway, so the API call is unnecessary.
-    $config = $this->configFactory->get(CloudflarePurgeForm::SETTINGS);
+    $config = $this->configFactory->get(CloudflarePurgeSettings::NAME);
     if ($config->get('queue_max_age_enabled') === TRUE) {
       $maxAge = (int) ($config->get('queue_max_age') ?? 0);
       if ($maxAge > 0 && $age > $maxAge) {

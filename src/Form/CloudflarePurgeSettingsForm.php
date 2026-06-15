@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Form;
 
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -58,7 +61,7 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   protected function getEditableConfigNames(): array {
-    return [CloudflarePurgeForm::SETTINGS];
+    return [CloudflarePurgeSettings::NAME];
   }
 
   /**
@@ -72,10 +75,11 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $config = $this->config(CloudflarePurgeForm::SETTINGS);
+    $config = $this->config(CloudflarePurgeSettings::NAME);
 
     $form['#attached']['library'][] = 'cloudflare_purge/form';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
+    $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 
     // Auto-purge section.
     $form['auto_purge'] = [
@@ -117,6 +121,56 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
           ':input[name="auto_purge_enabled"]' => ['checked' => TRUE],
         ],
       ],
+    ];
+
+    // Cache-Tag header sizing.
+    $form['auto_purge']['header_sizing'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Cache-Tag header size'),
+      '#description' => $this->t('Tag-rich pages (Layout Builder, Site Studio, large listings) can produce a very large Cache-Tag header. Cloudflare allows up to 16 KB for the aggregate Cache-Tag header (about 1,000 tags), but intermediate proxies and web servers often enforce lower header limits, which can cause a 5xx with no PHP error. These settings keep the header within a safe size.'),
+      '#open' => FALSE,
+      '#states' => [
+        'visible' => [
+          ':input[name="auto_purge_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['auto_purge']['header_sizing']['auto_purge_filter_header_tags'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Emit only purgeable tags in the Cache-Tag header'),
+      '#description' => $this->t('Recommended. Limits the header to tags for the entity types selected above (the only tags automatic purging acts on), dropping framework tags such as <code>config:*</code> and <code>http_response</code>. This is the biggest header size reduction. Disabling it emits every cache tag <em>and</em> purges every invalidated tag to keep the two in sync, which can sharply increase purge volume (frequently-invalidated tags like <code>config:*</code> and <code>http_response</code> would each trigger a Cloudflare purge) and may hit the rate limit.'),
+      '#default_value' => $config->get('auto_purge_filter_header_tags') !== FALSE,
+    ];
+
+    $form['auto_purge']['header_sizing']['auto_purge_hash_tags'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Hash cache tags'),
+      '#description' => $this->t('Replace each tag with a short fixed-length hash in both the header and the purge call, so tag purges still match at Cloudflare. Useful for pages with very large numbers of purgeable tags. Note: after toggling this, already-cached edge objects keep their old tokens until they are re-cached, so some purges may not match during that window.'),
+      '#default_value' => (bool) ($config->get('auto_purge_hash_tags') ?? FALSE),
+    ];
+
+    $form['auto_purge']['header_sizing']['auto_purge_hash_length'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Hashed tag length'),
+      '#description' => $this->t('Number of hex characters per hashed tag. Shorter saves space but slightly increases the chance of a collision (which causes an extra purge, never a stale page). 16 is a safe default.'),
+      '#default_value' => (int) ($config->get('auto_purge_hash_length') ?? 16),
+      '#min' => 6,
+      '#max' => 64,
+      '#states' => [
+        'visible' => [
+          ':input[name="auto_purge_hash_tags"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['auto_purge']['header_sizing']['auto_purge_header_max_bytes'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Maximum header size (bytes)'),
+      '#description' => $this->t("The Cache-Tag header is capped at this size. If a page still exceeds it, excess tags are dropped and a warning is logged. Cloudflare's own limit is 16 KB; a lower value is recommended to stay below common web server and proxy header limits."),
+      '#default_value' => (int) ($config->get('auto_purge_header_max_bytes') ?? 7168),
+      '#min' => 1024,
+      '#max' => 16384,
     ];
 
     // Queue settings.
@@ -177,7 +231,7 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     $form['rate_limit']['rate_limit_per_minute'] = [
       '#type' => 'number',
       '#title' => $this->t('Maximum requests per minute'),
-      '#description' => $this->t('Cloudflare free tier: 1000 API calls/day, 5 requests/minute for tag/prefix/hostname purges. Paid plans have higher limits.'),
+      '#description' => $this->t('Cloudflare free tier allows 5 requests/minute for tag, prefix and hostname purges (bucket size 25). Paid plans have higher limits.'),
       '#default_value' => (int) ($config->get('rate_limit_per_minute') ?? 60),
       '#min' => 1,
       '#max' => 1000,
@@ -202,6 +256,17 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
       '#default_value' => (bool) ($config->get('logging_enabled') ?? FALSE),
     ];
 
+    $form['logging']['history_limit'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Purge history entries to display'),
+      '#description' => $this->t('The maximum number of recent purge operations shown on the <a href=":history">Purge History</a> page. This only affects how many are displayed; entries are stored in the Drupal log and pruned by the Database Logging module. Requires the core Database Logging module.', [
+        ':history' => Url::fromRoute('cloudflare_purge.history')->toString(),
+      ]),
+      '#default_value' => (int) ($config->get('history_limit') ?? 100),
+      '#min' => 1,
+      '#max' => 1000,
+    ];
+
     // Cache-Tag header instructions.
     $form['instructions'] = [
       '#type' => 'details',
@@ -213,13 +278,13 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
       '#markup' => '<h4>' . $this->t('Adding Cache-Tag Headers') . '</h4>' .
       '<p>' . $this->t("For automatic tag-based purging to work, your responses must include <code>Cache-Tag</code> headers. This module automatically converts Drupal's <code>X-Drupal-Cache-Tags</code> header to Cloudflare's <code>Cache-Tag</code> format when auto-purge is enabled.") . '</p>' .
       '<h4>' . $this->t('Example Header') . '</h4>' .
-      '<pre>Cache-Tag: node-123, taxonomy_term-45, user-1</pre>' .
+      '<pre>Cache-Tag: node:123, taxonomy_term:45, user:1</pre>' .
       '<h4>' . $this->t('Requirements') . '</h4>' .
       '<ul>' .
       '<li>' . $this->t('Tag-based purging is available on all Cloudflare plans (since April 2025).') . '</li>' .
       '<li>' . $this->t('Free tier has rate limits: 5 requests/minute, max 100 tags per request.') . '</li>' .
       '<li>' . $this->t('Ensure your Cloudflare cache is configured to cache responses.') . '</li>' .
-      '<li>' . $this->t('Configure appropriate Page Rules in Cloudflare if needed.') . '</li>' .
+      '<li>' . $this->t('Configure appropriate Cache Rules (or legacy Page Rules) in Cloudflare if needed.') . '</li>' .
       '</ul>',
     ];
 
@@ -259,7 +324,7 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $config = $this->config(CloudflarePurgeForm::SETTINGS);
+    $config = $this->config(CloudflarePurgeSettings::NAME);
 
     // Save auto-purge settings.
     $config->set('auto_purge_enabled', (bool) $form_state->getValue('auto_purge_enabled'));
@@ -275,6 +340,12 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     }
     $config->set('auto_purge_entity_types', $entityTypes);
 
+    // Save Cache-Tag header sizing settings.
+    $config->set('auto_purge_filter_header_tags', (bool) $form_state->getValue('auto_purge_filter_header_tags'));
+    $config->set('auto_purge_hash_tags', (bool) $form_state->getValue('auto_purge_hash_tags'));
+    $config->set('auto_purge_hash_length', (int) ($form_state->getValue('auto_purge_hash_length') ?? 16));
+    $config->set('auto_purge_header_max_bytes', (int) ($form_state->getValue('auto_purge_header_max_bytes') ?? 7168));
+
     // Save queue settings.
     $config->set('auto_purge_use_queue', (bool) $form_state->getValue('auto_purge_use_queue'));
     $config->set('queue_max_age_enabled', (bool) $form_state->getValue('queue_max_age_enabled'));
@@ -284,8 +355,12 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     $config->set('rate_limit_enabled', (bool) $form_state->getValue('rate_limit_enabled'));
     $config->set('rate_limit_per_minute', (int) ($form_state->getValue('rate_limit_per_minute') ?? 60));
 
-    // Save logging settings.
+    // Save logging settings. Clamp the history limit to the schema range
+    // (1-1000) so config is always valid even if the form element's own
+    // validation is ever bypassed, keeping config export/validation healthy.
     $config->set('logging_enabled', (bool) $form_state->getValue('logging_enabled'));
+    $historyLimit = (int) ($form_state->getValue('history_limit') ?? 100);
+    $config->set('history_limit', max(1, min(1000, $historyLimit)));
 
     $config->save();
 

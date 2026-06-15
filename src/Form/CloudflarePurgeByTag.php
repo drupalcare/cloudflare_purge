@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Form;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
+use Drupal\cloudflare_purge\LineInputParser;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
@@ -61,10 +63,11 @@ final class CloudflarePurgeByTag extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $form['#attached']['library'][] = 'cloudflare_purge/form';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
+    $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 
     $form['description'] = [
       '#type' => 'markup',
-      '#markup' => '<p>' . $this->t('Purge cached content by cache tags. Cache tags are added to responses via the <code>Cache-Tag</code> HTTP header. You can purge up to @max tags per request.', [
+      '#markup' => '<p>' . $this->t('Purge cached content by cache tags. Cache tags are added to responses via the <code>Cache-Tag</code> HTTP header. Long lists are sent to Cloudflare in batches of @max automatically.', [
         '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
       ]) . '</p>',
     ];
@@ -73,11 +76,10 @@ final class CloudflarePurgeByTag extends FormBase {
       '#type' => 'textarea',
       '#title' => $this->t('Cache Tags'),
       '#required' => TRUE,
-      '#description' => $this->t('Enter cache tags to purge, one per line. Tags are case-insensitive and cannot contain spaces. Maximum @max tags, each up to @length characters.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
+      '#description' => $this->t('Enter cache tags to purge, one per line. Tags are case-insensitive and cannot contain spaces. Each tag may be up to @length characters.', [
         '@length' => self::MAX_TAG_LENGTH,
       ]),
-      '#placeholder' => "product-123\ncategory-electronics\nhomepage-banner",
+      '#placeholder' => "node:123\ntaxonomy_term:45\nuser:67",
       '#rows' => 8,
     ];
 
@@ -88,13 +90,13 @@ final class CloudflarePurgeByTag extends FormBase {
     ];
 
     $form['examples']['content'] = [
-      '#markup' => '<p>' . $this->t('Common cache tag patterns:') . '</p>' .
+      '#markup' => '<p>' . $this->t('Drupal cache tags use a colon, e.g. <code>node:1</code>. Common patterns:') . '</p>' .
       '<ul>' .
-      '<li><code>node-123</code> - ' . $this->t('A specific node') . '</li>' .
-      '<li><code>taxonomy-term-45</code> - ' . $this->t('A taxonomy term') . '</li>' .
-      '<li><code>user-67</code> - ' . $this->t('A user profile') . '</li>' .
-      '<li><code>block-sidebar</code> - ' . $this->t('A block') . '</li>' .
-      '<li><code>config-system-site</code> - ' . $this->t('Configuration object') . '</li>' .
+      '<li><code>node:123</code> - ' . $this->t('A specific node') . '</li>' .
+      '<li><code>taxonomy_term:45</code> - ' . $this->t('A taxonomy term') . '</li>' .
+      '<li><code>user:67</code> - ' . $this->t('A user profile') . '</li>' .
+      '<li><code>node_list</code> - ' . $this->t('Any node list (views, listings)') . '</li>' .
+      '<li><code>config:system.site</code> - ' . $this->t('Configuration object') . '</li>' .
       '</ul>',
     ];
 
@@ -134,14 +136,6 @@ final class CloudflarePurgeByTag extends FormBase {
 
     if ($tags === []) {
       $form_state->setErrorByName('tags', $this->t('Please enter at least one cache tag.'));
-      return;
-    }
-
-    if (count($tags) > CloudflarePurgeApi::MAX_BATCH_SIZE) {
-      $form_state->setErrorByName('tags', $this->t('Maximum @max tags per request. You entered @count.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-        '@count' => count($tags),
-      ]));
       return;
     }
 
@@ -201,21 +195,7 @@ final class CloudflarePurgeByTag extends FormBase {
    *   Array of cleaned tag strings.
    */
   private function parseTags(string $input): array {
-    $lines = preg_split('/\r\n|\r|\n/', $input);
-
-    if ($lines === FALSE) {
-      return [];
-    }
-
-    $tags = [];
-    foreach ($lines as $line) {
-      $tag = trim($line);
-      if ($tag !== '') {
-        $tags[] = $tag;
-      }
-    }
-
-    return array_values(array_unique($tags));
+    return LineInputParser::parse($input);
   }
 
 }

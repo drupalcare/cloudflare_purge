@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge\Form;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeLinks;
+use Drupal\cloudflare_purge\LineInputParser;
+use Drupal\cloudflare_purge\PrefixNormalizer;
 use Drupal\cloudflare_purge\PurgeInterface;
-use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -57,10 +59,11 @@ final class CloudflarePurgeByPrefix extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $form['#attached']['library'][] = 'cloudflare_purge/form';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
+    $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 
     $form['description'] = [
       '#type' => 'markup',
-      '#markup' => '<p>' . $this->t('Purge all cached content under specific URL prefixes. This invalidates entire sections of your site. You can purge up to @max prefixes per request.', [
+      '#markup' => '<p>' . $this->t('Purge all cached content under specific URL prefixes. This invalidates entire sections of your site. Long lists are sent to Cloudflare in batches of @max automatically.', [
         '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
       ]) . '</p>',
     ];
@@ -74,10 +77,8 @@ final class CloudflarePurgeByPrefix extends FormBase {
       '#type' => 'textarea',
       '#title' => $this->t('URL Prefixes'),
       '#required' => TRUE,
-      '#description' => $this->t('Enter URL prefixes to purge, one per line. Include the full URL with scheme (https://). Maximum @max prefixes per request.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-      ]),
-      '#placeholder' => "https://example.com/blog/\nhttps://example.com/products/electronics/\nhttps://example.com/images/2024/",
+      '#description' => $this->t('Enter URL prefixes to purge, one per line, as <code>host/path</code>. The scheme (https://) is optional and removed automatically, because Cloudflare rejects prefixes that include a scheme.'),
+      '#placeholder' => "example.com/blog/\nexample.com/products/electronics/\nexample.com/images/2024/",
       '#rows' => 8,
     ];
 
@@ -90,9 +91,9 @@ final class CloudflarePurgeByPrefix extends FormBase {
     $form['examples']['content'] = [
       '#markup' => '<p>' . $this->t('For a URL like <code>https://example.com/foo/bar/baz/image.jpg</code>, valid prefixes include:') . '</p>' .
       '<ul>' .
-      '<li><code>https://example.com/foo/</code></li>' .
-      '<li><code>https://example.com/foo/bar/</code></li>' .
-      '<li><code>https://example.com/foo/bar/baz/</code></li>' .
+      '<li><code>example.com/foo/</code></li>' .
+      '<li><code>example.com/foo/bar/</code></li>' .
+      '<li><code>example.com/foo/bar/baz/</code></li>' .
       '</ul>' .
       '<p>' . $this->t('All files under the specified prefix will be purged.') . '</p>',
     ];
@@ -136,31 +137,24 @@ final class CloudflarePurgeByPrefix extends FormBase {
       return;
     }
 
-    if (count($prefixes) > CloudflarePurgeApi::MAX_BATCH_SIZE) {
-      $form_state->setErrorByName('prefixes', $this->t('Maximum @max prefixes per request. You entered @count.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-        '@count' => count($prefixes),
-      ]));
-      return;
-    }
-
-    // Validate each prefix is a valid URL.
+    // Validate each prefix has a host component.
     $invalidPrefixes = [];
     foreach ($prefixes as $prefix) {
-      if (!UrlHelper::isValid($prefix, TRUE)) {
+      if (!PrefixNormalizer::isValid($prefix)) {
         $invalidPrefixes[] = $prefix;
       }
     }
 
     if ($invalidPrefixes !== []) {
-      $form_state->setErrorByName('prefixes', $this->t('Invalid prefixes: @prefixes. Prefixes must be fully qualified URLs (e.g., https://example.com/path/).', [
+      $form_state->setErrorByName('prefixes', $this->t('Invalid prefixes: @prefixes. Each prefix must include a host, e.g. <code>example.com/path/</code>.', [
         '@prefixes' => implode(', ', array_slice($invalidPrefixes, 0, 5)),
       ]));
       return;
     }
 
-    // Store parsed prefixes for submit handler.
-    $form_state->set('parsed_prefixes', $prefixes);
+    // Store normalized prefixes (scheme removed) for the submit handler.
+    $normalized = array_map([PrefixNormalizer::class, 'normalize'], $prefixes);
+    $form_state->set('parsed_prefixes', array_values(array_unique($normalized)));
   }
 
   /**
@@ -197,21 +191,7 @@ final class CloudflarePurgeByPrefix extends FormBase {
    *   Array of cleaned prefix strings.
    */
   private function parsePrefixes(string $input): array {
-    $lines = preg_split('/\r\n|\r|\n/', $input);
-
-    if ($lines === FALSE) {
-      return [];
-    }
-
-    $prefixes = [];
-    foreach ($lines as $line) {
-      $prefix = trim($line);
-      if ($prefix !== '') {
-        $prefixes[] = $prefix;
-      }
-    }
-
-    return array_values(array_unique($prefixes));
+    return LineInputParser::parse($input);
   }
 
 }
