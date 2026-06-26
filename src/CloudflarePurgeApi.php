@@ -151,6 +151,8 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
     array $headers,
     array $payload,
   ): CloudflarePurgeResult {
+    $config = \Drupal::config('cloudflare_purge.settings');
+
     // Validate zone ID format.
     if (!$this->isValidZoneId($zoneId)) {
       $this->logger->error('Invalid Cloudflare Zone ID format: @zone_id', [
@@ -193,9 +195,12 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
         // tags or hostnames, which can contain private paths/query strings or
         // reveal site structure (and would otherwise be visible on the purge
         // history page).
-        $this->logger->info('Cloudflare cache purged successfully: @summary.', [
-          '@summary' => $this->summarizePayload($payload),
-        ]);
+        if ($config->get('logging_enabled') === TRUE) {
+          $this->logger->info('Cloudflare cache purged successfully: @summary.',
+            [
+              '@summary' => $this->summarizePayload($payload),
+            ]);
+        }
         return new CloudflarePurgeResult(
           success: TRUE,
           statusCode: $code,
