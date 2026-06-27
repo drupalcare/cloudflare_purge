@@ -29,18 +29,21 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    *   Map of config key to value, returned by ImmutableConfig::get().
    * @param \Drupal\cloudflare_purge\PurgeInterface $purgeService
    *   The purge service mock.
+   * @param \Drupal\Core\Logger\LoggerChannelInterface|null $logger
+   *   An optional logger mock so callers can assert on log calls; a bare mock
+   *   is created when omitted.
    *
    * @return \Drupal\cloudflare_purge\Plugin\QueueWorker\CloudflarePurgeQueueWorker
    *   The worker under test.
    */
-  private function buildWorker(array $configMap, PurgeInterface $purgeService): CloudflarePurgeQueueWorker {
+  private function buildWorker(array $configMap, PurgeInterface $purgeService, ?LoggerChannelInterface $logger = NULL): CloudflarePurgeQueueWorker {
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => $configMap[$key] ?? NULL);
 
     $configFactory = $this->createMock(ConfigFactoryInterface::class);
     $configFactory->method('get')->with('cloudflare_purge.settings')->willReturn($config);
 
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger ??= $this->createMock(LoggerChannelInterface::class);
     $queueFactory = $this->createMock(QueueFactory::class);
 
     return new CloudflarePurgeQueueWorker(
@@ -145,6 +148,43 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
       'timestamp' => (string) (time() - 1800),
       'retries' => 0,
     ]);
+  }
+
+  /**
+   * Detailed logging off: a successful purge is not logged.
+   *
+   * Regression test for #3606632: the worker previously logged an ungated
+   * info() on every success, flooding dblog on auto-purge.
+   */
+  public function testSuccessfulPurgeNotLoggedWhenLoggingDisabled(): void {
+    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService->method('purgeByTags')
+      ->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
+
+    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger->expects($this->never())->method('info');
+
+    $worker = $this->buildWorker(['logging_enabled' => FALSE], $purgeService, $logger);
+
+    $worker->processItem(['tags' => ['node:1'], 'timestamp' => time(), 'retries' => 0]);
+  }
+
+  /**
+   * Detailed logging on: a successful purge is logged once.
+   */
+  public function testSuccessfulPurgeLoggedWhenLoggingEnabled(): void {
+    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService->method('purgeByTags')
+      ->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
+
+    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger->expects($this->once())
+      ->method('info')
+      ->with($this->stringContains('Queue worker purged'), $this->anything());
+
+    $worker = $this->buildWorker(['logging_enabled' => TRUE], $purgeService, $logger);
+
+    $worker->processItem(['tags' => ['node:1'], 'timestamp' => time(), 'retries' => 0]);
   }
 
   /**

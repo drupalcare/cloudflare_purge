@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge;
 
-use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Utility\Error;
 use GuzzleHttp\ClientInterface;
@@ -77,13 +76,10 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
    *   The HTTP client.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger channel.
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
-   *   The config factory, used to honor the detailed-logging setting.
    */
   public function __construct(
     private readonly ClientInterface $httpClient,
     private readonly LoggerChannelInterface $logger,
-    private readonly ConfigFactoryInterface $configFactory,
   ) {}
 
   /**
@@ -193,17 +189,11 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
       $data = $this->safeJsonDecode($body);
 
       if ($code === 200 && ($data['success'] ?? FALSE) === TRUE) {
-        // Only record successful purges when detailed logging is enabled, so
-        // operators who leave it off keep a clean dblog. Errors below are
-        // always logged. Log only the operation type and item count — never the
-        // purged URLs, tags or hostnames, which can contain private paths/query
-        // strings or reveal site structure (and would otherwise be visible on
-        // the purge history page).
-        if ($this->configFactory->get(CloudflarePurgeSettings::NAME)->get('logging_enabled') === TRUE) {
-          $this->logger->info('Cloudflare cache purged successfully: @summary.', [
-            '@summary' => $this->summarizePayload($payload),
-          ]);
-        }
+        // Successful purges are logged (privacy-safely, and gated by the
+        // "detailed logging" setting) by the Purge service, which wraps every
+        // call into this low-level client. Logging here too would duplicate
+        // those entries and — being ungated — flood dblog on auto-purge even
+        // when detailed logging is off. Errors below are always logged.
         return new CloudflarePurgeResult(
           success: TRUE,
           statusCode: $code,
@@ -278,39 +268,6 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
         message: 'HTTP request failed: ' . $e->getMessage(),
       );
     }
-  }
-
-  /**
-   * Summarizes a purge payload as operation type + item count, no values.
-   *
-   * Used for logging so the log (and the purge history page) never records the
-   * actual URLs, tags or hostnames that were purged.
-   *
-   * @param array<string, mixed> $payload
-   *   The request payload.
-   *
-   * @return string
-   *   A human-readable summary, e.g. "12 URLs" or "purge everything".
-   */
-  private function summarizePayload(array $payload): string {
-    if (($payload['purge_everything'] ?? FALSE) === TRUE) {
-      return 'purge everything';
-    }
-
-    $labels = [
-      'files' => 'URL',
-      'tags' => 'cache tag',
-      'prefixes' => 'prefix',
-      'hosts' => 'hostname',
-    ];
-    foreach ($labels as $key => $label) {
-      if (isset($payload[$key]) && is_array($payload[$key])) {
-        $count = count($payload[$key]);
-        return $count . ' ' . $label . ($count === 1 ? '' : 's');
-      }
-    }
-
-    return 'unknown operation';
   }
 
   /**

@@ -8,6 +8,7 @@ use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\cloudflare_purge\PurgeHistoryInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the purge-history reader service.
@@ -15,6 +16,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * @group cloudflare_purge
  */
 #[CoversClass(\Drupal\cloudflare_purge\PurgeHistory::class)]
+#[RunTestsInSeparateProcesses]
 final class PurgeHistoryTest extends KernelTestBase {
 
   /**

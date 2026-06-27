@@ -12,6 +12,7 @@ use Drupal\user\Entity\Role;
 use Drupal\user\Entity\User;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversMethod;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests purge history substitutes watchdog log placeholders.
@@ -21,6 +22,7 @@ use PHPUnit\Framework\Attributes\CoversMethod;
 #[CoversClass(CloudflarePurgeController::class)]
 #[CoversMethod(CloudflarePurgeController::class, 'formatWatchdogMessage')]
 #[CoversMethod(CloudflarePurgeController::class, 'history')]
+#[RunTestsInSeparateProcesses]
 final class CloudflarePurgeHistoryTest extends KernelTestBase {
 
   /**
