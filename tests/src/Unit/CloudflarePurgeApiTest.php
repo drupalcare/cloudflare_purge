@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Psr7\Response;
@@ -23,6 +26,33 @@ class CloudflarePurgeApiTest extends TestCase {
    * Valid test zone ID (32-character hex).
    */
   private const TEST_ZONE_ID = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+
+  /**
+   * Builds an API service with a config factory stubbing the logging setting.
+   *
+   * @param \GuzzleHttp\ClientInterface $httpClient
+   *   The HTTP client (usually a mock).
+   * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
+   *   The logger channel (usually a mock).
+   * @param bool $loggingEnabled
+   *   Whether detailed logging is enabled in config.
+   *
+   * @return \Drupal\cloudflare_purge\CloudflarePurgeApi
+   *   The configured API service.
+   */
+  private function createApi(ClientInterface $httpClient, LoggerChannelInterface $logger, bool $loggingEnabled = FALSE): CloudflarePurgeApi {
+    $config = $this->createMock(ImmutableConfig::class);
+    $config->method('get')
+      ->with('logging_enabled')
+      ->willReturn($loggingEnabled);
+
+    $configFactory = $this->createMock(ConfigFactoryInterface::class);
+    $configFactory->method('get')
+      ->with(CloudflarePurgeSettings::NAME)
+      ->willReturn($config);
+
+    return new CloudflarePurgeApi($httpClient, $logger, $configFactory);
+  }
 
   /**
    * Test purge everything with Bearer Token.
@@ -47,7 +77,7 @@ class CloudflarePurgeApiTest extends TestCase {
       )
       ->willReturn($response);
 
-    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $api = $this->createApi($httpClient, $logger);
     $result = $api->purgeEverything(TRUE, self::TEST_ZONE_ID, 'test-token', NULL, NULL);
 
     $this->assertTrue($result->isSuccess());
@@ -78,7 +108,7 @@ class CloudflarePurgeApiTest extends TestCase {
       )
       ->willReturn($response);
 
-    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $api = $this->createApi($httpClient, $logger);
     $result = $api->purgeEverything(FALSE, self::TEST_ZONE_ID, '', 'test-api-key', 'test@example.com');
 
     $this->assertTrue($result->isSuccess());
@@ -106,7 +136,7 @@ class CloudflarePurgeApiTest extends TestCase {
       )
       ->willReturn($response);
 
-    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $api = $this->createApi($httpClient, $logger);
     $result = $api->purgeByUrls(
       TRUE,
       self::TEST_ZONE_ID,
@@ -141,7 +171,7 @@ class CloudflarePurgeApiTest extends TestCase {
       )
       ->willReturn($response);
 
-    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $api = $this->createApi($httpClient, $logger);
     $result = $api->purgeByTags(
       TRUE,
       self::TEST_ZONE_ID,
@@ -164,7 +194,7 @@ class CloudflarePurgeApiTest extends TestCase {
     // Should not make HTTP request with invalid zone ID.
     $httpClient->expects($this->never())->method('request');
 
-    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $api = $this->createApi($httpClient, $logger);
     $result = $api->purgeEverything(TRUE, 'invalid-zone-id', 'test-token', NULL, NULL);
 
     $this->assertFalse($result->isSuccess());
@@ -180,7 +210,7 @@ class CloudflarePurgeApiTest extends TestCase {
 
     $httpClient->expects($this->never())->method('request');
 
-    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $api = $this->createApi($httpClient, $logger);
     $result = $api->purgeByUrls(TRUE, self::TEST_ZONE_ID, 'test-token', NULL, NULL, []);
 
     $this->assertFalse($result->isSuccess());

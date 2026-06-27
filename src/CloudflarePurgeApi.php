@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Utility\Error;
 use GuzzleHttp\ClientInterface;
@@ -76,10 +77,13 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
    *   The HTTP client.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger channel.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   The config factory, used to honor the detailed-logging setting.
    */
   public function __construct(
     private readonly ClientInterface $httpClient,
     private readonly LoggerChannelInterface $logger,
+    private readonly ConfigFactoryInterface $configFactory,
   ) {}
 
   /**
@@ -151,8 +155,6 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
     array $headers,
     array $payload,
   ): CloudflarePurgeResult {
-    $config = \Drupal::config('cloudflare_purge.settings');
-
     // Validate zone ID format.
     if (!$this->isValidZoneId($zoneId)) {
       $this->logger->error('Invalid Cloudflare Zone ID format: @zone_id', [
@@ -191,15 +193,16 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
       $data = $this->safeJsonDecode($body);
 
       if ($code === 200 && ($data['success'] ?? FALSE) === TRUE) {
-        // Log only the operation type and item count — never the purged URLs,
-        // tags or hostnames, which can contain private paths/query strings or
-        // reveal site structure (and would otherwise be visible on the purge
-        // history page).
-        if ($config->get('logging_enabled') === TRUE) {
-          $this->logger->info('Cloudflare cache purged successfully: @summary.',
-            [
-              '@summary' => $this->summarizePayload($payload),
-            ]);
+        // Only record successful purges when detailed logging is enabled, so
+        // operators who leave it off keep a clean dblog. Errors below are
+        // always logged. Log only the operation type and item count — never the
+        // purged URLs, tags or hostnames, which can contain private paths/query
+        // strings or reveal site structure (and would otherwise be visible on
+        // the purge history page).
+        if ($this->configFactory->get(CloudflarePurgeSettings::NAME)->get('logging_enabled') === TRUE) {
+          $this->logger->info('Cloudflare cache purged successfully: @summary.', [
+            '@summary' => $this->summarizePayload($payload),
+          ]);
         }
         return new CloudflarePurgeResult(
           success: TRUE,

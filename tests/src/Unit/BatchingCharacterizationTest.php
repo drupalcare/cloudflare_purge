@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Psr7\Response;
@@ -53,7 +56,12 @@ final class BatchingCharacterizationTest extends TestCase {
         return $response;
       });
 
-    return new CloudflarePurgeApi($httpClient, $logger);
+    $config = $this->createMock(ImmutableConfig::class);
+    $config->method('get')->with('logging_enabled')->willReturn(FALSE);
+    $configFactory = $this->createMock(ConfigFactoryInterface::class);
+    $configFactory->method('get')->with(CloudflarePurgeSettings::NAME)->willReturn($config);
+
+    return new CloudflarePurgeApi($httpClient, $logger, $configFactory);
   }
 
   /**

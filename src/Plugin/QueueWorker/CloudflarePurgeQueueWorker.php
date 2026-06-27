@@ -151,9 +151,15 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
       $result = $this->purgeService->purgeByTags($tags, FALSE);
 
       if ($result->isSuccess()) {
-        $this->logger->info('Queue worker purged @count cache tag(s) from Cloudflare.', [
-          '@count' => count($tags),
-        ]);
+        // Only record successful purges when detailed logging is enabled,
+        // matching the API service and the Purge service. Auto-purge runs this
+        // worker for every content save, so an ungated info() here floods
+        // dblog even when the operator has left detailed logging off.
+        if ($config->get('logging_enabled') === TRUE) {
+          $this->logger->info('Queue worker purged @count cache tag(s) from Cloudflare.', [
+            '@count' => count($tags),
+          ]);
+        }
         return;
       }
 

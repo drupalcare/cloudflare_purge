@@ -10,6 +10,7 @@ services:
     arguments:
       - '@http_client'
       - '@logger.channel.cloudflare_purge'
+      - '@config.factory'
 
   # Shared cache-tag formatter (filter + prefix + optional hash + size guard).
   # Single source of truth so the Cache-Tag header and tag-purge calls match.

@@ -1,10 +1,12 @@
 # Cloudflare Purge module admin menu links.
 
-# Main configuration link in admin menu.
+# Top-level Cloudflare Purge section. Points at a neutral landing route so the
+# section is reachable by any user with a Cloudflare Purge permission, not only
+# administrators. Each child link is shown or hidden by its own route access.
 cloudflare_purge.admin:
   title: 'Cloudflare Purge'
   description: 'Configure Cloudflare cache purging settings and credentials.'
-  route_name: cloudflare_purge.form
+  route_name: cloudflare_purge.admin_config
   parent: system.admin_config
   weight: 50
 

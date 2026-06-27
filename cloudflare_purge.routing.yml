@@ -1,5 +1,20 @@
 # Cloudflare Purge module routing configuration.
 
+# Neutral landing page for the Cloudflare Purge admin section. It only lists the
+# child links the current user can access, so the menu section is reachable by
+# anyone with at least one Cloudflare Purge permission (e.g. a user who may only
+# perform manual purges) instead of being gated behind "Administer Cloudflare
+# Purge". Each child route still enforces its own permission.
+cloudflare_purge.admin_config:
+  path: '/admin/config/cloudflare-purge'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Cloudflare Purge'
+  requirements:
+    _permission: 'administer cloudflare purge+cloudflare purge+cloudflare purge everything+view cloudflare purge history'
+  options:
+    _admin_route: TRUE
+
 # Main credentials configuration form.
 cloudflare_purge.form:
   path: '/admin/config/cloudflare-purge/credentials'

@@ -5,6 +5,12 @@ All notable changes to the Cloudflare Purge module will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-06-26
+
+### Fixed
+- Successful purges were logged at the `info` level regardless of the "Enable detailed logging" setting, so operators who left it off still saw watchdog entries on every content save (e.g. ~16 messages when saving a tag-rich homepage). The API service and the queue worker now honor `logging_enabled` for their success logs, matching the Purge service and the on-screen help text. Errors and warnings are still always logged. (#3606632)
+- Users with only the "Perform manual Cloudflare purge operations" permission could not reach the purge forms through the admin menu, because the top-level menu link resolved access via the credentials route (which requires "Administer Cloudflare Purge"). The section now uses a neutral landing route (`cloudflare_purge.admin_config`) gated by the union of the module's permissions, so the menu is reachable by anyone holding at least one Cloudflare Purge permission; each child link still enforces its own permission. (#3606643)
+
 ## [3.1.0] - 2026-06-14
 
 ### Added
