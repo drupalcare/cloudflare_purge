@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge;
 
 use Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface;
+use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\State\StateInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 
@@ -63,6 +65,9 @@ final class Purge implements PurgeInterface {
    *   The cache tag formatter.
    * @param \Drupal\cloudflare_purge\CredentialResolverInterface $credentialResolver
    *   The credential resolver.
+   * @param \Drupal\Core\Queue\QueueFactory $queueFactory
+   *   The queue factory, used to drop the pending tag-purge queue once
+   *   everything has been purged.
    */
   public function __construct(
     private readonly ConfigFactoryInterface $configFactory,
@@ -72,6 +77,7 @@ final class Purge implements PurgeInterface {
     private readonly StateInterface $state,
     private readonly CacheTagFormatterInterface $cacheTagFormatter,
     private readonly CredentialResolverInterface $credentialResolver,
+    private readonly QueueFactory $queueFactory,
   ) {}
 
   /**
@@ -108,6 +114,13 @@ final class Purge implements PurgeInterface {
       email: $credentials['email'],
     );
 
+    if ($result->isSuccess()) {
+      // Everything just got purged, so any tags still queued from before this
+      // call are now redundant: purging them would only spend rate-limited
+      // API requests re-clearing content that's already gone.
+      $this->clearTagQueue();
+    }
+
     if ($showMessage) {
       $this->displayResultMessage($result, self::TYPE_EVERYTHING);
     }
@@ -115,6 +128,23 @@ final class Purge implements PurgeInterface {
     $this->logPurgeOperation(self::TYPE_EVERYTHING, [], $result);
 
     return $result;
+  }
+
+  /**
+   * Deletes the queue of pending cache-tag purge requests.
+   *
+   * Called after a successful purge-everything, since any tags queued before
+   * that point have already been cleared along with the rest of the zone.
+   */
+  private function clearTagQueue(): void {
+    try {
+      $this->queueFactory->get(CloudflareCacheTagInvalidator::QUEUE_NAME)->deleteQueue();
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to clear the pending cache tag purge queue: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+    }
   }
 
   /**
