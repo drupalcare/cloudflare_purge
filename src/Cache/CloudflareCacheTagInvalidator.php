@@ -9,7 +9,9 @@ use Drupal\cloudflare_purge\CloudflarePurgeSettings;
 use Drupal\cloudflare_purge\ItemBatcher;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
+use Drupal\Core\Cache\CacheTagsPurgeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Installer\InstallerKernel;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Queue\QueueFactory;
 
@@ -22,7 +24,7 @@ use Drupal\Core\Queue\QueueFactory;
  *
  * @package Drupal\cloudflare_purge\Cache
  */
-final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterface {
+final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterface, CacheTagsPurgeInterface {
 
   /**
    * Queue name for deferred purge operations.
@@ -91,6 +93,47 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
     }
     else {
       $this->purgeTags($filteredTags);
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Core calls this from the cache_tags.invalidator service during
+   * drupal_flush_all_caches() (e.g. `drush cr`, the "Clear all caches" button,
+   * or rebuild_cache_access), immediately before the cache bins are cleared. A
+   * full flush invalidates every Drupal cache tag, so the only faithful
+   * Cloudflare action is to purge the entire zone. Because a full flush happens
+   * often (every rebuild, deploy, and module install), this is opt-in and off
+   * by default so routine `drush cr` never purges the CDN unexpectedly.
+   */
+  public function purge(): void {
+    $config = $this->configFactory->get(CloudflarePurgeSettings::NAME);
+
+    // Opt-in only.
+    if ($config->get('purge_everything_on_flush') !== TRUE) {
+      return;
+    }
+
+    // A full cache flush is part of site installation, when no zone or
+    // credentials exist yet; never purge in that state.
+    if (InstallerKernel::installationAttempted()) {
+      return;
+    }
+
+    if (!$this->purgeService->hasCredentials()) {
+      return;
+    }
+
+    // This runs inside the critical cache-rebuild path, so a Cloudflare failure
+    // must never interrupt the flush: swallow and log everything.
+    try {
+      $this->purgeService->purgeEverything(FALSE);
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to purge Cloudflare cache on full cache flush: @message', [
+        '@message' => $e->getMessage(),
+      ]);
     }
   }
 

@@ -73,6 +73,10 @@ cloudflare_purge.settings:
       type: boolean
       label: 'Use queue for automatic purging'
 
+    purge_everything_on_flush:
+      type: boolean
+      label: 'Purge the entire Cloudflare zone when all Drupal caches are flushed'
+
     queue_max_age_enabled:
       type: boolean
       label: 'Discard queued purge items older than the configured TTL'

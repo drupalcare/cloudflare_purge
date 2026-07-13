@@ -95,6 +95,13 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
       '#default_value' => (bool) ($config->get('auto_purge_enabled') ?? FALSE),
     ];
 
+    $form['auto_purge']['purge_everything_on_flush'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Purge entire zone when all caches are flushed'),
+      '#description' => $this->t('When enabled, a full Cloudflare zone purge runs whenever Drupal flushes all caches (for example <code>drush cr</code>, the "Clear all caches" button, or a deployment). A full flush invalidates every cache tag, so nothing narrower would be correct. This is independent of automatic cache tag purging above. Leave off during active development, since every <code>drush cr</code> would purge the whole zone.'),
+      '#default_value' => (bool) ($config->get('purge_everything_on_flush') ?? FALSE),
+    ];
+
     $form['auto_purge']['tag_prefix'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Cache Tag Prefix'),
@@ -328,6 +335,7 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
 
     // Save auto-purge settings.
     $config->set('auto_purge_enabled', (bool) $form_state->getValue('auto_purge_enabled'));
+    $config->set('purge_everything_on_flush', (bool) $form_state->getValue('purge_everything_on_flush'));
     $config->set('tag_prefix', trim((string) ($form_state->getValue('tag_prefix') ?? '')));
 
     // Filter out unchecked entity types and ensure array values.

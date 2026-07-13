@@ -26,6 +26,12 @@ auto_purge_entity_types:
   - media
 auto_purge_use_queue: false
 
+# Purge the entire Cloudflare zone whenever all Drupal caches are flushed
+# (drupal_flush_all_caches(), e.g. `drush cr` or the "Clear all caches" button).
+# Off by default: a full flush is frequent, and each one triggers a full-zone
+# purge, which is heavy and rate-limited.
+purge_everything_on_flush: false
+
 # Discard queued purge items older than queue_max_age seconds.
 # Useful when the queue is rate-limited and items would expire at the edge
 # (via your Cloudflare cache TTL) before the queue can drain.
