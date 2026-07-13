@@ -22,6 +22,10 @@ parameters:
       identifier: class.notFound
       path: src/Form/CloudflarePurgeForm.php
       reportUnmatched: false
+    -
+      identifier: class.notFound
+      path: src/CredentialResolver.php
+      reportUnmatched: false
     # Drupal service container usage in State API helper methods.
     -
       identifier: globalDrupalDependencyInjection.useDependencyInjection
