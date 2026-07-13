@@ -38,7 +38,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   cloudflare_purge:4.0.0. Use
    *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::NAME instead.
    *
-   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
+   * @see https://www.drupal.org/node/3600858
    */
   public const SETTINGS = CloudflarePurgeSettings::NAME;
 
@@ -49,7 +49,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   cloudflare_purge:4.0.0. Use
    *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::AUTH_BEARER instead.
    *
-   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
+   * @see https://www.drupal.org/node/3600858
    */
   public const AUTH_BEARER = CloudflarePurgeSettings::AUTH_BEARER;
 
@@ -60,7 +60,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   cloudflare_purge:4.0.0. Use
    *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::AUTH_LEGACY instead.
    *
-   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
+   * @see https://www.drupal.org/node/3600858
    */
   public const AUTH_LEGACY = CloudflarePurgeSettings::AUTH_LEGACY;
 
@@ -71,7 +71,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   cloudflare_purge:4.0.0. Use
    *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::STORAGE_PLAIN instead.
    *
-   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
+   * @see https://www.drupal.org/node/3600858
    */
   public const STORAGE_PLAIN = CloudflarePurgeSettings::STORAGE_PLAIN;
 
@@ -82,7 +82,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
    *   cloudflare_purge:4.0.0. Use
    *   \Drupal\cloudflare_purge\CloudflarePurgeSettings::STORAGE_KEY instead.
    *
-   * @see \Drupal\cloudflare_purge\CloudflarePurgeSettings
+   * @see https://www.drupal.org/node/3600858
    */
   public const STORAGE_KEY = CloudflarePurgeSettings::STORAGE_KEY;
 
