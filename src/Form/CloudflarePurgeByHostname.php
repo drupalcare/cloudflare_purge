@@ -62,6 +62,10 @@ final class CloudflarePurgeByHostname extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $form['#attached']['library'][] = 'cloudflare_purge/form';
+    // Also attach the navigation library at form level; CloudflarePurgeLinks
+    // attaches it on a cache-keyed sub-element whose bubbled #attached can be
+    // served stale from the render cache, leaving the tab strip unstyled.
+    $form['#attached']['library'][] = 'cloudflare_purge/navigation';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
     $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 

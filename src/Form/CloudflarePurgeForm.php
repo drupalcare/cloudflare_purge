@@ -153,6 +153,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
     // Attach CSS library.
     $form['#attached']['library'][] = 'cloudflare_purge/form';
+    // Attach the navigation library at form level too. CloudflarePurgeLinks
+    // also attaches it, but on a sub-element carrying its own #cache metadata
+    // whose bubbled #attached can be served stale from the render cache,
+    // dropping the stylesheet. Attaching here guarantees the tab strip is
+    // always styled.
+    $form['#attached']['library'][] = 'cloudflare_purge/navigation';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
     $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
 

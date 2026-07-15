@@ -70,6 +70,10 @@ final class CloudflarePurgeController extends ControllerBase {
 
     $build = [];
     $build['cloudflare_purge_nav'] = CloudflarePurgeLinks::build('cloudflare_purge.history');
+    // Also attach the navigation library at page level; CloudflarePurgeLinks
+    // attaches it on a cache-keyed sub-element whose bubbled #attached can be
+    // served stale from the render cache, leaving the tab strip unstyled.
+    $build['#attached']['library'][] = 'cloudflare_purge/navigation';
 
     // The page reflects live log data, so it must never be cached.
     $build['#cache']['max-age'] = 0;
@@ -223,6 +227,10 @@ final class CloudflarePurgeController extends ControllerBase {
 
     $build = [];
     $build['cloudflare_purge_nav'] = CloudflarePurgeLinks::build('cloudflare_purge.limits');
+    // Also attach the navigation library at page level; CloudflarePurgeLinks
+    // attaches it on a cache-keyed sub-element whose bubbled #attached can be
+    // served stale from the render cache, leaving the tab strip unstyled.
+    $build['#attached']['library'][] = 'cloudflare_purge/navigation';
 
     $build['intro'] = [
       '#type' => 'markup',
