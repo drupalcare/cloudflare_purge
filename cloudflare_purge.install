@@ -424,4 +424,3 @@ function cloudflare_purge_update_9007(): string {
 
   return (string) t('Created the cloudflare_purge_pending_tags table used to merge duplicate cache-tag invalidations before they reach the purge queue.');
 }
-

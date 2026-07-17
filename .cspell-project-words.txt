@@ -10,9 +10,11 @@ cfpp
 cfpt
 cfpu
 creds
+dedup
 haddad
 lockr
 purgeable
+reinvalidated
 retriable
 selectify
 ungated
