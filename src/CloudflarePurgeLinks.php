@@ -49,6 +49,7 @@ final class CloudflarePurgeLinks {
       'cloudflare_purge.purge_by_prefix' => $instance->t('Purge by Prefix'),
       'cloudflare_purge.purge_by_hostname' => $instance->t('Purge by Hostname'),
       'cloudflare_purge.purge_everything' => $instance->t('Purge Everything'),
+      'cloudflare_purge.queued_tags' => $instance->t('Queued Tags'),
       'cloudflare_purge.history' => $instance->t('Purge History'),
       'cloudflare_purge.limits' => $instance->t('Plans & Limits'),
     ];

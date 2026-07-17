@@ -38,6 +38,12 @@ purge_everything_on_flush: false
 queue_max_age_enabled: false
 queue_max_age: 900
 
+# Cache tags are merged into a deduplicated pending set (see
+# cloudflare_purge_pending_tags) rather than queued immediately, so repeated
+# invalidations of the same tag collapse into one. hook_cron() drains all
+# pending tags every run, oldest first, into queue items batched at
+# CloudflarePurgeApi::MAX_BATCH_SIZE.
+
 tag_prefix: ''
 
 # Cache-Tag header sizing. The header is capped at auto_purge_header_max_bytes

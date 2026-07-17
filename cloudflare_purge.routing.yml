@@ -92,6 +92,17 @@ cloudflare_purge.purge_everything:
   options:
     _admin_route: TRUE
 
+# Cache tags queued for a Cloudflare purge (queue mode only).
+cloudflare_purge.queued_tags:
+  path: '/admin/config/cloudflare-purge/queued-tags'
+  defaults:
+    _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeQueuedTags'
+    _title: 'Queued Tags'
+  requirements:
+    _permission: 'cloudflare purge'
+  options:
+    _admin_route: TRUE
+
 # Purge history page.
 cloudflare_purge.history:
   path: '/admin/config/cloudflare-purge/history'

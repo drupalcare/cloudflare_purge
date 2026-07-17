@@ -163,11 +163,14 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
         return;
       }
 
-      // Handle rate limiting - suspend queue processing.
+      // Handle rate limiting - suspend queue processing. Throwing
+      // SuspendQueueException (rather than requeueing manually) makes core's
+      // cron queue runner release this same claimed item back, unclaimed and
+      // unchanged, instead of leaving a duplicate copy behind: requeueing
+      // here as well would leave two copies of these tags in the queue once
+      // core's catch block also releases the original.
       if ($result->isRateLimited()) {
         $this->logger->warning('Rate limited while purging cache tags. Suspending queue.');
-        // Re-queue with same retry count before suspending.
-        $this->requeueWithRetry($tags, $timestamp, $retries);
         throw new SuspendQueueException('Cloudflare rate limit reached');
       }
 

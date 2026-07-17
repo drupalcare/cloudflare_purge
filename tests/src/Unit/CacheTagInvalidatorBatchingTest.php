@@ -6,14 +6,12 @@ namespace Drupal\Tests\cloudflare_purge\Unit;
 
 use Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface;
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
-use Drupal\cloudflare_purge\CloudflarePurgeApi;
 use Drupal\cloudflare_purge\CloudflarePurgeResult;
+use Drupal\cloudflare_purge\PendingTagsStoreInterface;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\Core\Queue\QueueFactory;
-use Drupal\Core\Queue\QueueInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -23,8 +21,9 @@ use PHPUnit\Framework\TestCase;
  *
  * After the batching refactor the invalidator no longer pre-chunks for the
  * immediate path — it hands the full tag set to the Purge service, which owns
- * batching. The queue path still emits one item per MAX_BATCH_SIZE batch so
- * each queued request stays a single, rate-limit-friendly call. Both
+ * batching. The queue path merges the full tag set into the pending-tags
+ * store as-is; batching into Cloudflare-sized queue items happens later, at
+ * drain time (@see PendingTagDrainer), so it is not exercised here. Both
  * behaviors are pinned here.
  *
  * @group cloudflare_purge
@@ -56,13 +55,13 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
    *   Whether auto_purge_use_queue is enabled.
    * @param \Drupal\cloudflare_purge\PurgeInterface&\PHPUnit\Framework\MockObject\MockObject $purgeService
    *   The purge service mock.
-   * @param \Drupal\Core\Queue\QueueFactory $queueFactory
-   *   The queue factory mock.
+   * @param \Drupal\cloudflare_purge\PendingTagsStoreInterface $pendingTagsStore
+   *   The pending-tags store mock.
    *
    * @return \Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator
    *   The invalidator under test.
    */
-  private function buildInvalidator(bool $useQueue, PurgeInterface&MockObject $purgeService, QueueFactory $queueFactory): CloudflareCacheTagInvalidator {
+  private function buildInvalidator(bool $useQueue, PurgeInterface&MockObject $purgeService, PendingTagsStoreInterface $pendingTagsStore): CloudflareCacheTagInvalidator {
     $configMap = [
       'auto_purge_enabled' => TRUE,
       'auto_purge_use_queue' => $useQueue,
@@ -82,7 +81,7 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
       $purgeService,
       $configFactory,
       $this->createMock(LoggerChannelInterface::class),
-      $queueFactory,
+      $pendingTagsStore,
       $formatter,
     );
   }
@@ -104,8 +103,9 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
         return new CloudflarePurgeResult(TRUE, 200, 'ok');
       });
 
-    $queueFactory = $this->createMock(QueueFactory::class);
-    $invalidator = $this->buildInvalidator(FALSE, $purgeService, $queueFactory);
+    $pendingTagsStore = $this->createMock(PendingTagsStoreInterface::class);
+    $pendingTagsStore->expects($this->never())->method('add');
+    $invalidator = $this->buildInvalidator(FALSE, $purgeService, $pendingTagsStore);
 
     $invalidator->invalidateTags($this->makeTags(65));
 
@@ -114,30 +114,31 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
   }
 
   /**
-   * Queue mode: 250 tags become one item per batch, sizes [100, 100, 50].
+   * Queue mode: the full tag set is merged into the pending-tags store as-is.
+   *
+   * Splitting into Cloudflare-sized batches is the drainer's job, not the
+   * invalidator's, so all 250 tags arrive in a single add() call here.
    */
-  public function testQueueModeCreatesOneItemPerBatch(): void {
-    $itemSizes = [];
-    $queue = $this->createMock(QueueInterface::class);
-    $queue->method('createItem')
-      ->willReturnCallback(function (array $data) use (&$itemSizes): int {
-        $itemSizes[] = count($data['tags']);
-        return 1;
+  public function testQueueModeMergesFullSetIntoPendingStore(): void {
+    $received = [];
+    $calls = 0;
+    $pendingTagsStore = $this->createMock(PendingTagsStoreInterface::class);
+    $pendingTagsStore->method('add')
+      ->willReturnCallback(function (array $tags) use (&$received, &$calls): int {
+        $calls++;
+        $received = $tags;
+        return count($tags);
       });
-
-    $queueFactory = $this->createMock(QueueFactory::class);
-    $queueFactory->method('get')
-      ->with(CloudflareCacheTagInvalidator::QUEUE_NAME)
-      ->willReturn($queue);
 
     $purgeService = $this->createMock(PurgeInterface::class);
     $purgeService->expects($this->never())->method('purgeByTags');
 
-    $invalidator = $this->buildInvalidator(TRUE, $purgeService, $queueFactory);
+    $invalidator = $this->buildInvalidator(TRUE, $purgeService, $pendingTagsStore);
 
     $invalidator->invalidateTags($this->makeTags(250));
 
-    $this->assertSame([CloudflarePurgeApi::MAX_BATCH_SIZE, CloudflarePurgeApi::MAX_BATCH_SIZE, 50], $itemSizes);
+    $this->assertSame(1, $calls);
+    $this->assertCount(250, $received);
   }
 
   /**
@@ -152,7 +153,7 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
         return new CloudflarePurgeResult(TRUE, 200, 'ok');
       });
 
-    $invalidator = $this->buildInvalidator(FALSE, $purgeService, $this->createMock(QueueFactory::class));
+    $invalidator = $this->buildInvalidator(FALSE, $purgeService, $this->createMock(PendingTagsStoreInterface::class));
 
     $invalidator->invalidateTags($this->makeTags(30));
 

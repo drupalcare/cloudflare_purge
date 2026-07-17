@@ -7,11 +7,11 @@ namespace Drupal\Tests\cloudflare_purge\Unit;
 use Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface;
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
 use Drupal\cloudflare_purge\CloudflarePurgeResult;
+use Drupal\cloudflare_purge\PendingTagsStoreInterface;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\Core\Queue\QueueFactory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -56,7 +56,7 @@ final class CacheFlushPurgeTest extends TestCase {
       $purgeService,
       $configFactory,
       $this->createMock(LoggerChannelInterface::class),
-      $this->createMock(QueueFactory::class),
+      $this->createMock(PendingTagsStoreInterface::class),
       $this->createMock(CacheTagFormatterInterface::class),
     );
   }

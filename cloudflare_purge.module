@@ -81,6 +81,9 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
     case 'cloudflare_purge.purge_by_hostname':
       return '<p>' . t('Enter hostnames to purge all cached content for those domains. Available on all Cloudflare plans.') . '</p>';
 
+    case 'cloudflare_purge.queued_tags':
+      return '<p>' . t('Cache tags queued for a Cloudflare purge are merged into a deduplicated set so repeated invalidations of the same tag never create duplicate purge requests. This page is only relevant when queueing is enabled for automatic purging.') . '</p>';
+
     default:
       return '';
   }
@@ -90,10 +93,15 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
  * Implements hook_cron().
  */
 function cloudflare_purge_cron(): void {
-  // The queue worker handles purge processing automatically.
-  // This hook is available for any future cron-based maintenance tasks.
   try {
     $config = \Drupal::config('cloudflare_purge.settings');
+
+    // Merge pending cache tags into batched, FIFO-ordered queue items before
+    // the queue worker (which core's cron already invokes) runs. The queue
+    // worker itself handles the actual purge processing.
+    if ($config->get('auto_purge_use_queue') === TRUE) {
+      \Drupal::service('cloudflare_purge.pending_tag_drainer')->drain();
+    }
 
     // Log cron run if detailed logging is enabled.
     if ($config->get('logging_enabled') === TRUE) {

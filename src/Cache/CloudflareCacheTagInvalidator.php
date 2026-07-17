@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Cache;
 
-use Drupal\cloudflare_purge\CloudflarePurgeApi;
 use Drupal\cloudflare_purge\CloudflarePurgeSettings;
-use Drupal\cloudflare_purge\ItemBatcher;
+use Drupal\cloudflare_purge\PendingTagsStoreInterface;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Cache\CacheTagsPurgeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Installer\InstallerKernel;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\Core\Queue\QueueFactory;
 
 /**
  * Cloudflare cache tag invalidator.
@@ -40,8 +38,8 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
    *   The config factory.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger channel.
-   * @param \Drupal\Core\Queue\QueueFactory $queueFactory
-   *   The queue factory.
+   * @param \Drupal\cloudflare_purge\PendingTagsStoreInterface $pendingTagsStore
+   *   The pending-tags store.
    * @param \Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface $cacheTagFormatter
    *   The cache tag formatter.
    */
@@ -49,7 +47,7 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
     private readonly PurgeInterface $purgeService,
     private readonly ConfigFactoryInterface $configFactory,
     private readonly LoggerChannelInterface $logger,
-    private readonly QueueFactory $queueFactory,
+    private readonly PendingTagsStoreInterface $pendingTagsStore,
     private readonly CacheTagFormatterInterface $cacheTagFormatter,
   ) {}
 
@@ -138,30 +136,20 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
   }
 
   /**
-   * Queues tags for later processing.
+   * Merges tags into the pending set for later, batched processing.
+   *
+   * Tags are not queued directly here: repeated invalidations of the same
+   * tag (a resave, several entities sharing a listing tag, etc.) would each
+   * create their own queue item. Instead tags are merged into a deduplicated
+   * pending set; hook_cron() drains it into properly batched queue items,
+   * oldest tags first, via PendingTagDrainerInterface.
    *
    * @param array<int, string> $tags
-   *   The cache tags to queue.
+   *   The cache tags to merge in.
    */
   private function queueTags(array $tags): void {
     try {
-      $queue = $this->queueFactory->get(self::QUEUE_NAME);
-
-      // Batch tags into groups of max batch size so each queue item is a
-      // single Cloudflare request, kept small to drain within the rate limit.
-      $batches = ItemBatcher::chunk($tags, CloudflarePurgeApi::MAX_BATCH_SIZE);
-
-      foreach ($batches as $batch) {
-        $queue->createItem([
-          'tags' => $batch,
-          'timestamp' => time(),
-          'retries' => 0,
-        ]);
-      }
-
-      $this->logger->debug('Queued @count cache tag(s) for Cloudflare purge.', [
-        '@count' => count($tags),
-      ]);
+      $this->pendingTagsStore->add($tags);
     }
     catch (\Exception $e) {
       $this->logger->error('Failed to queue cache tags for Cloudflare purge: @message', [

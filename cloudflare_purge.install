@@ -12,6 +12,48 @@ use Drupal\Core\Link;
 use Drupal\Core\Url;
 
 /**
+ * Implements hook_schema().
+ */
+function cloudflare_purge_schema(): array {
+  $schema['cloudflare_purge_pending_tags'] = [
+    'description' => 'Deduplicated cache tags awaiting a Cloudflare purge, merged by hook_cron into batched queue items.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Insertion-order surrogate key; oldest id is drained first (FIFO).',
+      ],
+      'tag_hash' => [
+        'type' => 'varchar_ascii',
+        'length' => 64,
+        'not null' => TRUE,
+        'description' => 'SHA-256 hex digest of tag, used as the dedup key (tag text itself is too long to index).',
+      ],
+      'tag' => [
+        'type' => 'varchar_ascii',
+        'length' => 1024,
+        'not null' => TRUE,
+        'description' => 'The raw cache tag text. Cloudflare cache tags are printable ASCII only, up to 1024 characters per tag.',
+      ],
+      'created' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'Unix timestamp the tag was first queued for purging.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'tag_hash' => ['tag_hash'],
+    ],
+    'indexes' => [
+      'created' => ['created'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
  * Implements hook_requirements().
  */
 function cloudflare_purge_requirements(string $phase): array {
@@ -183,6 +225,12 @@ function cloudflare_purge_uninstall(): void {
     // Clear any queued items.
     $queue = \Drupal::queue('cloudflare_purge_tags');
     $queue->deleteQueue();
+
+    // Drop the pending-tags table.
+    $schema = \Drupal::database()->schema();
+    if ($schema->tableExists('cloudflare_purge_pending_tags')) {
+      $schema->dropTable('cloudflare_purge_pending_tags');
+    }
 
     \Drupal::logger('cloudflare_purge')->info('Cloudflare Purge module uninstalled and configuration cleared.');
   }
@@ -360,3 +408,20 @@ function cloudflare_purge_update_9006(): string {
     return (string) t('Error adding purge history limit configuration: @message', ['@message' => $e->getMessage()]);
   }
 }
+
+/**
+ * Create the cloudflare_purge_pending_tags table.
+ */
+function cloudflare_purge_update_9007(): string {
+  $schema = \Drupal::database()->schema();
+
+  if ($schema->tableExists('cloudflare_purge_pending_tags')) {
+    return (string) t('The cloudflare_purge_pending_tags table already exists.');
+  }
+
+  $definition = \Drupal::moduleHandler()->invoke('cloudflare_purge', 'schema');
+  $schema->createTable('cloudflare_purge_pending_tags', $definition['cloudflare_purge_pending_tags']);
+
+  return (string) t('Created the cloudflare_purge_pending_tags table used to merge duplicate cache-tag invalidations before they reach the purge queue.');
+}
+

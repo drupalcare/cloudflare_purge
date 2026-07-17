@@ -25,6 +25,30 @@ services:
     arguments:
       - '@database'
 
+  # Deduplicated store of cache tags awaiting a Cloudflare purge.
+  cloudflare_purge.pending_tags_store:
+    class: Drupal\cloudflare_purge\PendingTagsStore
+    arguments:
+      - '@database'
+
+  # Drains the pending-tags store into batched, FIFO-ordered queue items.
+  cloudflare_purge.pending_tag_drainer:
+    class: Drupal\cloudflare_purge\PendingTagDrainer
+    arguments:
+      - '@cloudflare_purge.pending_tags_store'
+      - '@queue'
+      - '@lock'
+      - '@logger.channel.cloudflare_purge'
+
+  # Advises whether the purge queue may be growing faster than it can drain.
+  cloudflare_purge.queue_backlog_advisor:
+    class: Drupal\cloudflare_purge\QueueBacklogAdvisor
+    arguments:
+      - '@config.factory'
+      - '@cloudflare_purge.pending_tags_store'
+      - '@queue'
+      - '@string_translation'
+
   # Single source of truth for credential, auth-method and storage resolution.
   cloudflare_purge.credential_resolver:
     class: Drupal\cloudflare_purge\CredentialResolver
@@ -53,7 +77,7 @@ services:
       - '@cloudflare_purge.purge'
       - '@config.factory'
       - '@logger.channel.cloudflare_purge'
-      - '@queue'
+      - '@cloudflare_purge.pending_tags_store'
       - '@cloudflare_purge.cache_tag_formatter'
     tags:
       # Lower priority so Drupal's internal invalidation runs first.

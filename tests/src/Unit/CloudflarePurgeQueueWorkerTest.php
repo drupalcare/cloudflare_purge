@@ -11,6 +11,8 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Queue\QueueFactory;
+use Drupal\Core\Queue\QueueInterface;
+use Drupal\Core\Queue\SuspendQueueException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -32,11 +34,14 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    * @param \Drupal\Core\Logger\LoggerChannelInterface|null $logger
    *   An optional logger mock so callers can assert on log calls; a bare mock
    *   is created when omitted.
+   * @param \Drupal\Core\Queue\QueueFactory|null $queueFactory
+   *   An optional queue factory mock so callers can assert on requeue calls;
+   *   a bare mock is created when omitted.
    *
    * @return \Drupal\cloudflare_purge\Plugin\QueueWorker\CloudflarePurgeQueueWorker
    *   The worker under test.
    */
-  private function buildWorker(array $configMap, PurgeInterface $purgeService, ?LoggerChannelInterface $logger = NULL): CloudflarePurgeQueueWorker {
+  private function buildWorker(array $configMap, PurgeInterface $purgeService, ?LoggerChannelInterface $logger = NULL, ?QueueFactory $queueFactory = NULL): CloudflarePurgeQueueWorker {
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => $configMap[$key] ?? NULL);
 
@@ -44,7 +49,7 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
     $configFactory->method('get')->with('cloudflare_purge.settings')->willReturn($config);
 
     $logger ??= $this->createMock(LoggerChannelInterface::class);
-    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory ??= $this->createMock(QueueFactory::class);
 
     return new CloudflarePurgeQueueWorker(
       [],
@@ -209,6 +214,31 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
       'timestamp' => time() - 7200,
       'retries' => 0,
     ]);
+  }
+
+  /**
+   * Rate limiting suspends the queue without creating a duplicate item.
+   *
+   * Regression test: requeueing here as well as suspending would leave two
+   * copies of the same tags in the queue, because core's cron queue runner
+   * also releases the original claimed item back on SuspendQueueException.
+   */
+  public function testRateLimitSuspendsWithoutRequeueing(): void {
+    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService->method('purgeByTags')
+      ->willReturn(new CloudflarePurgeResult(FALSE, 429, 'Rate limited'));
+
+    $queue = $this->createMock(QueueInterface::class);
+    $queue->expects($this->never())->method('createItem');
+
+    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory->method('get')->willReturn($queue);
+
+    $worker = $this->buildWorker([], $purgeService, NULL, $queueFactory);
+
+    $this->expectException(SuspendQueueException::class);
+
+    $worker->processItem(['tags' => ['node:1'], 'timestamp' => time(), 'retries' => 0]);
   }
 
 }

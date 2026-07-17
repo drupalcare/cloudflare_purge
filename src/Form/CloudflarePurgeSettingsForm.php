@@ -6,6 +6,7 @@ namespace Drupal\cloudflare_purge\Form;
 
 use Drupal\cloudflare_purge\CloudflarePurgeLinks;
 use Drupal\cloudflare_purge\CloudflarePurgeSettings;
+use Drupal\cloudflare_purge\QueueBacklogAdvisorInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -37,11 +38,14 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
    *   The typed config manager.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
+   * @param \Drupal\cloudflare_purge\QueueBacklogAdvisorInterface $backlogAdvisor
+   *   The queue-backlog advisor.
    */
   public function __construct(
     ConfigFactoryInterface $configFactory,
     TypedConfigManagerInterface $typedConfigManager,
     private readonly EntityTypeManagerInterface $entityTypeManager,
+    private readonly QueueBacklogAdvisorInterface $backlogAdvisor,
   ) {
     parent::__construct($configFactory, $typedConfigManager);
   }
@@ -54,6 +58,7 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('config.typed'),
       $container->get('entity_type.manager'),
+      $container->get('cloudflare_purge.queue_backlog_advisor'),
     );
   }
 
@@ -84,6 +89,10 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     $form['#attached']['library'][] = 'cloudflare_purge/navigation';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
     $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
+
+    foreach ($this->backlogAdvisor->getWarnings() as $warning) {
+      $this->messenger()->addWarning($warning);
+    }
 
     // Auto-purge section.
     $form['auto_purge'] = [
@@ -194,7 +203,9 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     $form['queue']['auto_purge_use_queue'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Use queue for automatic purging'),
-      '#description' => $this->t('Queue purge requests instead of executing immediately. Recommended for high-traffic sites to avoid rate limiting and improve page save performance. Queue is processed during cron runs.'),
+      '#description' => $this->t('Queue purge requests instead of executing immediately. Recommended for high-traffic sites to avoid rate limiting and improve page save performance. Invalidated tags are merged into a deduplicated pending set (see <a href=":queued_tags">Queued Tags</a>) and drained into batched queue items during cron, so repeated invalidations of the same tag never create duplicate queue items.', [
+        ':queued_tags' => Url::fromRoute('cloudflare_purge.queued_tags')->toString(),
+      ]),
       '#default_value' => (bool) ($config->get('auto_purge_use_queue') ?? FALSE),
     ];
 

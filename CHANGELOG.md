@@ -5,6 +5,17 @@ All notable changes to the Cloudflare Purge module will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Deduplicated pending-tags merging for queued automatic purging (#3611366). Previously, every cache-tag invalidation created its own queue item immediately, so a client resaving the same item (or two separate items both invalidating a shared listing tag like `node_list`) piled up overlapping queue items — a real problem on hosting with infrequent cron (e.g. Upsun's 5-minute minimum). Invalidated tags are now merged into a deduplicated pending set (new `cloudflare_purge_pending_tags` table via `cloudflare_purge.pending_tags_store`); repeated invalidations of the same tag are a no-op. `hook_cron()` drains all pending tags oldest-first (FIFO) into queue items batched at `CloudflarePurgeApi::MAX_BATCH_SIZE` via a new `cloudflare_purge.pending_tag_drainer` service, so however many overlapping invalidations occurred, the queue only ever gets the minimum number of items needed to cover the distinct pending tags. The immediate (non-queue) purge path is unaffected.
+- New "Queued Tags" review page (`/admin/config/cloudflare-purge/queued-tags`) showing the distinct pending tag count, the number of batched purge requests already in the Cloudflare purge queue, and the oldest pending tag's age, with a "Drain queued tags now" action that runs the same drain hook_cron() performs, without waiting for the next cron run.
+- Unit and kernel test coverage for the new pending-tags store and drainer (`PendingTagsStoreTest`, `PendingTagDrainerTest`), including a regression test pinning the "overlapping invalidations collapse into one purge" behavior.
+- Queue-backlog advisory warnings (`cloudflare_purge.queue_backlog_advisor`), shown on both the Auto-Purge Settings and Queued Tags pages when automatic purging is queueing: if no rate limit is set and the estimated number of tags awaiting purge exceeds 1,000, or a rate limit is set but would take more than 10 minutes to clear the currently queued purge requests, a warning suggests checking the log for Cloudflare `429` responses and considering a full cache clear for one-off spikes. Either warning also recommends enabling "Discard queued items older than the configured TTL" when it's currently off. Deliberately advisory rather than enforced (no automatic cap was reintroduced) — the module surfaces the signal, the site builder decides. Unit test coverage in `QueueBacklogAdvisorTest`.
+
+### Fixed
+- A Cloudflare rate-limit response (`429`) during queue processing duplicated the queue item: the worker manually requeued the tags with the same retry count and then threw `SuspendQueueException`, but core's cron queue runner also releases the original claimed item back on that exception — leaving two copies of the same tags in the queue. The worker no longer requeues manually; it relies on core's release of the original (unclaimed, unchanged) item, so rate limiting no longer amplifies queue growth. Added a regression test (`testRateLimitSuspendsWithoutRequeueing`).
+
 ## [3.1.1] - 2026-06-26
 
 ### Fixed
