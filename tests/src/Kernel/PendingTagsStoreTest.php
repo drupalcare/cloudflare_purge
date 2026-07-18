@@ -88,14 +88,15 @@ class PendingTagsStoreTest extends KernelTestBase {
   }
 
   /**
-   * Deleting by ID removes only the specified rows.
+   * Draining removes only the specified rows.
    */
-  public function testDeleteByIdsRemovesOnlySpecifiedRows(): void {
+  public function testDeleteDrainedRemovesOnlySpecifiedRows(): void {
     $this->store()->add(['node:1', 'node:2', 'node:3']);
     $rows = $this->store()->getOldest(10);
     $idToDelete = $rows[0]['id'];
 
-    $deleted = $this->store()->deleteByIds([$idToDelete]);
+    // A generous watermark deletes the row regardless of its last_invalidated.
+    $deleted = $this->store()->deleteDrained([$idToDelete], time() + 1);
 
     $this->assertSame(1, $deleted);
     $this->assertSame(2, $this->store()->count());
@@ -120,6 +121,98 @@ class PendingTagsStoreTest extends KernelTestBase {
     $this->store()->add(['node:2']);
 
     $this->assertSame($firstTimestamp, $this->store()->getOldestTimestamp());
+  }
+
+  /**
+   * Each returned row carries a last_invalidated timestamp.
+   *
+   * On first insert it equals created; both are populated.
+   */
+  public function testGetOldestReturnsLastInvalidated(): void {
+    $this->store()->add(['node:1']);
+
+    $rows = $this->store()->getOldest(1);
+
+    $this->assertArrayHasKey('last_invalidated', $rows[0]);
+    $this->assertGreaterThan(0, $rows[0]['last_invalidated']);
+    $this->assertSame($rows[0]['created'], $rows[0]['last_invalidated']);
+  }
+
+  /**
+   * Re-adding a pending tag refreshes last_invalidated but keeps created.
+   *
+   * Verified by rewriting the row to an old time, then re-adding: created (the
+   * FIFO / "waiting since" clock) is preserved, while last_invalidated (the
+   * TTL clock) jumps forward to now.
+   */
+  public function testReAddRefreshesLastInvalidatedButKeepsCreated(): void {
+    $this->store()->add(['node:1']);
+
+    // Backdate both clocks to two hours ago.
+    $this->container->get('database')->update('cloudflare_purge_pending_tags')
+      ->fields(['created' => time() - 7200, 'last_invalidated' => time() - 7200])
+      ->condition('tag', 'node:1')
+      ->execute();
+
+    // A fresh invalidation of the same tag.
+    $added = $this->store()->add(['node:1']);
+    $this->assertSame(0, $added);
+
+    $rows = $this->store()->getOldest(1);
+    // The created value stays old; last_invalidated is refreshed to ~now.
+    $this->assertLessThan(time() - 3600, $rows[0]['created']);
+    $this->assertGreaterThan(time() - 60, $rows[0]['last_invalidated']);
+  }
+
+  /**
+   * Draining keeps a row re-invalidated after it was read.
+   *
+   * Models the drain race: a tag's last_invalidated advances past the drained
+   * queue item's timestamp between the drain's read and its delete, so the row
+   * must survive and be drained again rather than lost.
+   */
+  public function testDeleteDrainedKeepsReInvalidatedRows(): void {
+    $this->store()->add(['node:1']);
+    $rows = $this->store()->getOldest(1);
+    $id = $rows[0]['id'];
+    $drainedTimestamp = $rows[0]['last_invalidated'];
+
+    // Simulate a re-invalidation after the drain read the row: last_invalidated
+    // jumps past the timestamp the drain will delete against.
+    $this->container->get('database')->update('cloudflare_purge_pending_tags')
+      ->fields(['last_invalidated' => $drainedTimestamp + 100])
+      ->condition('id', $id)
+      ->execute();
+
+    $deleted = $this->store()->deleteDrained([$id], $drainedTimestamp);
+
+    $this->assertSame(0, $deleted);
+    $this->assertSame(1, $this->store()->count());
+  }
+
+  /**
+   * Re-adding never moves last_invalidated backwards.
+   *
+   * A delayed, out-of-order invalidation (an older timestamp arriving after a
+   * newer one already landed) must not reduce last_invalidated, or the queue
+   * TTL could wrongly treat a freshly-changed tag as stale.
+   */
+  public function testReAddNeverLowersLastInvalidated(): void {
+    $this->store()->add(['node:1']);
+
+    // Simulate a newer invalidation having already landed by pushing
+    // last_invalidated into the future.
+    $future = time() + 3600;
+    $this->container->get('database')->update('cloudflare_purge_pending_tags')
+      ->fields(['last_invalidated' => $future])
+      ->condition('tag', 'node:1')
+      ->execute();
+
+    // A re-add stamped with "now" must not pull last_invalidated back.
+    $this->store()->add(['node:1']);
+
+    $rows = $this->store()->getOldest(1);
+    $this->assertSame($future, $rows[0]['last_invalidated']);
   }
 
 }

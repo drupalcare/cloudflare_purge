@@ -30,6 +30,16 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
   public const QUEUE_NAME = 'cloudflare_purge_tags';
 
   /**
+   * State key holding the Unix timestamp of the last full zone purge.
+   *
+   * Set when a purge-everything succeeds; read by the queue worker to skip
+   * queued tag purges whose invalidations predate it (already covered by the
+   * full purge), instead of deleting the queue outright and risking a race
+   * with tags drained into it mid-purge.
+   */
+  public const LAST_FULL_PURGE_STATE_KEY = 'cloudflare_purge.last_purge_everything';
+
+  /**
    * Constructs a CloudflareCacheTagInvalidator.
    *
    * @param \Drupal\cloudflare_purge\PurgeInterface $purgeService

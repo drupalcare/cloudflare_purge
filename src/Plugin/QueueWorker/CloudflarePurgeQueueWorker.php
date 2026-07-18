@@ -12,7 +12,9 @@ use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerBase;
+use Drupal\Core\Queue\RequeueException;
 use Drupal\Core\Queue\SuspendQueueException;
+use Drupal\Core\State\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -60,6 +62,8 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
    *   The queue factory.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The config factory.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   The state service, used to skip items already covered by a full purge.
    */
   public function __construct(
     array $configuration,
@@ -69,6 +73,7 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
     private readonly LoggerChannelInterface $logger,
     private readonly QueueFactory $queueFactory,
     private readonly ConfigFactoryInterface $configFactory,
+    private readonly StateInterface $state,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
   }
@@ -90,6 +95,7 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
       $container->get('logger.channel.cloudflare_purge'),
       $container->get('queue'),
       $container->get('config.factory'),
+      $container->get('state'),
     );
   }
 
@@ -140,6 +146,21 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
       }
     }
 
+    // Skip items already covered by a full zone purge. If every tag in this
+    // item was last invalidated before the most recent purge-everything, the
+    // content is already gone from Cloudflare and the API call would be
+    // redundant. The item 'timestamp' is the freshest invalidation in the
+    // batch, so this only fires when the whole batch predates the purge. This
+    // replaces deleting the queue outright on purge-everything, which could
+    // race with tags being drained into it while the purge was in flight.
+    $lastFullPurge = (int) $this->state->get(CloudflareCacheTagInvalidator::LAST_FULL_PURGE_STATE_KEY, 0);
+    if ($lastFullPurge > 0 && $timestamp < $lastFullPurge) {
+      $this->logger->debug('Discarded @count cache tag(s) already covered by a full Cloudflare purge.', [
+        '@count' => count($tags),
+      ]);
+      return;
+    }
+
     // Log if item has been in queue for too long.
     if ($age > self::MAX_AGE_WARNING) {
       $this->logger->notice('Processing Cloudflare purge item that was queued @age seconds ago.', [
@@ -147,6 +168,12 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
       ]);
     }
 
+    // The retriable-failure message, set below when a retry is warranted. The
+    // actual retry (handleFailure) runs after the try/catch so a
+    // RequeueException raised while re-queueing propagates to core — which
+    // releases the original, unchanged item — instead of being swallowed by
+    // the generic catch here.
+    $failureMessage = '';
     try {
       $result = $this->purgeService->purgeByTags($tags, FALSE);
 
@@ -180,8 +207,8 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
         return;
       }
 
-      // Handle retriable failures.
-      $this->handleFailure($tags, $timestamp, $retries, $result->getMessage());
+      // Retriable failure: fall through to handleFailure() below.
+      $failureMessage = $result->getMessage();
     }
     catch (SuspendQueueException $e) {
       throw $e;
@@ -190,8 +217,12 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
       $this->logger->error('Queue worker exception during cache tag purge: @message', [
         '@message' => $e->getMessage(),
       ]);
-      $this->handleFailure($tags, $timestamp, $retries, $e->getMessage());
+      $failureMessage = $e->getMessage();
     }
+
+    // Every path that reaches here assigned $failureMessage a string (success,
+    // auth error and rate limiting all returned or threw above).
+    $this->handleFailure($tags, $timestamp, $retries, $failureMessage);
   }
 
   /**
@@ -226,26 +257,51 @@ final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements Contai
   /**
    * Re-queues tags with updated retry count.
    *
+   * On a retriable failure the worker creates a fresh queue item carrying an
+   * incremented retry count and then returns normally, letting core delete the
+   * original claimed item. If creating that fresh item fails, returning
+   * normally would drop the retry entirely (core deletes the original), so
+   * instead a RequeueException is thrown: core then releases the original item
+   * unchanged, preserving the purge for a later attempt.
+   *
    * @param array<int, string> $tags
    *   The cache tags to requeue.
    * @param int $timestamp
    *   The original queue timestamp.
    * @param int $retries
    *   The new retry count.
+   *
+   * @throws \Drupal\Core\Queue\RequeueException
+   *   When the queue backend rejects the retry item, so core keeps the
+   *   original claimed item instead of dropping the purge.
    */
   private function requeueWithRetry(array $tags, int $timestamp, int $retries): void {
     try {
       $queue = $this->queueFactory->get(CloudflareCacheTagInvalidator::QUEUE_NAME);
-      $queue->createItem([
+      // QueueInterface::createItem() can return FALSE on a backend failure
+      // without throwing.
+      $itemId = $queue->createItem([
         'tags' => $tags,
         'timestamp' => $timestamp,
         'retries' => $retries,
       ]);
+      if ($itemId === FALSE) {
+        throw new RequeueException('The queue backend rejected the Cloudflare purge retry item.');
+      }
+    }
+    catch (RequeueException $e) {
+      $this->logger->error('Failed to requeue @count cache tag(s) for a Cloudflare purge retry; keeping the original queue item for a later attempt.', [
+        '@count' => count($tags),
+      ]);
+      throw $e;
     }
     catch (\Exception $e) {
+      // The backend threw while creating the retry item. Ask core to keep the
+      // original claimed item rather than dropping the purge.
       $this->logger->error('Failed to requeue cache tags: @message', [
         '@message' => $e->getMessage(),
       ]);
+      throw new RequeueException('Failed to enqueue the Cloudflare purge retry item.');
     }
   }
 

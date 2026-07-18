@@ -68,7 +68,6 @@ services:
       - '@state'
       - '@cloudflare_purge.cache_tag_formatter'
       - '@cloudflare_purge.credential_resolver'
-      - '@queue'
 
   # Cache tag invalidator for automatic Cloudflare purging.
   cloudflare_purge.cache_tag_invalidator:

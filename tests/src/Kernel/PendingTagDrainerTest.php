@@ -145,20 +145,42 @@ class PendingTagDrainerTest extends KernelTestBase {
   }
 
   /**
-   * A queued item's timestamp is the oldest tag's queued time, not now.
+   * A queued item's timestamp is the freshest invalidation in its batch.
    *
-   * Preserves the existing queue_max_age TTL semantics: a batch is only as
-   * fresh as its oldest tag, regardless of when the drain itself ran.
+   * The queue TTL discard is all-or-nothing per item, so a batch must be aged
+   * from its newest last_invalidated: a recently re-invalidated tag riding
+   * alongside an older one must not drag the item's age back and get the whole
+   * batch discarded. Worst case an already-stale tag is re-purged for free in
+   * the same request.
    */
-  public function testQueueItemTimestampUsesOldestTagAge(): void {
-    $this->store()->add(['node:1']);
-    $firstTimestamp = $this->store()->getOldestTimestamp();
+  public function testQueueItemTimestampUsesFreshestInvalidation(): void {
+    // Two tags in the same batch with very different last_invalidated times.
+    $this->insertPending('node:1', time() - 7200, time() - 7200);
+    $this->insertPending('node:2', time() - 7200, time() - 5);
 
     $this->drainer()->drain();
 
     $queue = $this->container->get('queue')->get(CloudflareCacheTagInvalidator::QUEUE_NAME);
     $data = $this->claimItemData($queue);
-    $this->assertSame($firstTimestamp, $data['timestamp']);
+    // The freshest last_invalidated (node:2, ~5s ago), not the oldest.
+    $this->assertGreaterThan(time() - 60, $data['timestamp']);
+  }
+
+  /**
+   * Inserts a pending row directly with explicit timestamps.
+   *
+   * The store's add() always stamps "now", so exercising drain-time age logic
+   * requires writing controlled created/last_invalidated values.
+   */
+  private function insertPending(string $tag, int $created, int $lastInvalidated): void {
+    $this->container->get('database')->insert('cloudflare_purge_pending_tags')
+      ->fields([
+        'tag_hash' => hash('sha256', $tag),
+        'tag' => $tag,
+        'created' => $created,
+        'last_invalidated' => $lastInvalidated,
+      ])
+      ->execute();
   }
 
 }

@@ -5,16 +5,34 @@ declare(strict_types=1);
 namespace Drupal\cloudflare_purge;
 
 use Drupal\Core\Database\Connection;
-use Drupal\Core\Database\IntegrityConstraintViolationException;
+use Drupal\Core\Database\Query\Merge;
 
 /**
  * Database-backed pending-tags store.
+ *
+ * Concurrency note: add() (upsert) and the drainer's read-then-deleteDrained()
+ * are individually safe and the common re-invalidation cases are covered — a
+ * tag re-invalidated to a value newer than the drained batch's timestamp is
+ * kept and re-drained. A narrow residual window remains only when a tag is
+ * re-invalidated within the same one-second timestamp resolution as a
+ * concurrent drain of that same tag: e.g. add()'s MERGE reads the row and the
+ * drainer deletes it between the MERGE's internal SELECT and UPDATE (the
+ * UPDATE then matches nothing while MERGE still reports an update), or a
+ * re-invalidation lands after the drained item was already processed but
+ * carries the same second, so deleteDrained() still removes it. Either way a
+ * single re-invalidation can be neither re-queued nor kept, and it can only
+ * cause a missed purge when the optional queue TTL discard is enabled and the
+ * drained item is dropped as stale. Fully closing it would require a per-row
+ * revision column and a hand-rolled upsert, which would reintroduce the
+ * unique-violation exception this store deliberately avoids (see add()); that
+ * trade is not worth a more likely PostgreSQL failure for this opt-in,
+ * sub-second edge case.
  *
  * @internal
  *
  * @package Drupal\cloudflare_purge
  */
-class PendingTagsStore implements PendingTagsStoreInterface {
+final class PendingTagsStore implements PendingTagsStoreInterface {
 
   /**
    * The name of the pending-tags table.
@@ -40,92 +58,62 @@ class PendingTagsStore implements PendingTagsStoreInterface {
       return 0;
     }
 
-    $hashes = array_map(self::hash(...), $tags);
-    $existing = $this->database->select(self::TABLE, 'p')
-      ->fields('p', ['tag_hash'])
-      ->condition('p.tag_hash', $hashes, 'IN')
-      ->execute()
-      ->fetchCol();
-    $existing = array_flip($existing);
-
     $now = time();
-    $insert = $this->database->insert(self::TABLE)
-      ->fields(['tag_hash', 'tag', 'created']);
-    $newCount = 0;
+    $added = 0;
 
-    foreach ($tags as $index => $tag) {
-      $hash = $hashes[$index];
-      if (isset($existing[$hash])) {
-        continue;
-      }
-      $insert->values(['tag_hash' => $hash, 'tag' => $tag, 'created' => $now]);
-      $newCount++;
-    }
+    // MERGE inserts a new row or, if the tag is already pending, updates it —
+    // keeping the original id/created for FIFO ordering and moving
+    // last_invalidated forward. Using the Merge API rather than "SELECT then
+    // INSERT and catch the unique-key violation" keeps the caller's code path
+    // free of an integrity-constraint exception, which matters because tag
+    // invalidation runs inside the entity-save transaction: on PostgreSQL such
+    // an exception aborts the whole transaction and could roll back the
+    // content save. The update uses a CASE expression (rather than a plain
+    // assignment) so a delayed, out-of-order request can never move
+    // last_invalidated backwards under concurrency.
+    foreach ($tags as $tag) {
+      $hash = self::hash($tag);
+      // tag_hash is listed in insertFields() explicitly rather than relying on
+      // key() to contribute it: insertFields() sets the insert field list
+      // outright, so a key() added before it would be dropped from the INSERT
+      // and violate the NOT NULL constraint. Listing it here is unambiguous
+      // across Drupal versions.
+      $status = $this->database->merge(self::TABLE)
+        ->key('tag_hash', $hash)
+        ->insertFields([
+          'tag_hash' => $hash,
+          'tag' => $tag,
+          'created' => $now,
+          'last_invalidated' => $now,
+        ])
+        ->expression(
+          'last_invalidated',
+          // Two distinct placeholders for the same value: reusing one named
+          // placeholder can break on drivers that use real (non-emulated)
+          // prepared statements, such as PostgreSQL.
+          'CASE WHEN last_invalidated < :cfp_now_a THEN :cfp_now_b ELSE last_invalidated END',
+          [':cfp_now_a' => $now, ':cfp_now_b' => $now],
+        )
+        ->execute();
 
-    if ($newCount === 0) {
-      return 0;
-    }
-
-    try {
-      $insert->execute();
-    }
-    catch (IntegrityConstraintViolationException) {
-      // A concurrent request inserted one of these hashes between the SELECT
-      // above and this INSERT; retry row by row so the rest of the batch
-      // still lands, skipping whichever rows now collide.
-      $newCount = $this->addRowByRow($tags, $hashes, $existing, $now);
-    }
-
-    return $newCount;
-  }
-
-  /**
-   * Inserts tags one at a time, silently skipping any that already exist.
-   *
-   * Fallback path for the rare race where a concurrent request inserts a tag
-   * between this store's existence check and its bulk insert.
-   *
-   * @param array<int, string> $tags
-   *   The sanitized tags being added.
-   * @param array<int, string> $hashes
-   *   The tag hashes, same order/keys as $tags.
-   * @param array<string, int> $existing
-   *   Hashes already known to be pending, keyed by hash.
-   * @param int $now
-   *   The timestamp to record for newly inserted rows.
-   *
-   * @return int
-   *   The number of rows actually inserted.
-   */
-  private function addRowByRow(array $tags, array $hashes, array $existing, int $now): int {
-    $inserted = 0;
-
-    foreach ($tags as $index => $tag) {
-      $hash = $hashes[$index];
-      if (isset($existing[$hash])) {
-        continue;
-      }
-
-      try {
-        $this->database->insert(self::TABLE)
-          ->fields(['tag_hash' => $hash, 'tag' => $tag, 'created' => $now])
-          ->execute();
-        $inserted++;
-      }
-      catch (IntegrityConstraintViolationException) {
-        // Lost the race for this specific tag; it is already pending.
+      if ($status === Merge::STATUS_INSERT) {
+        $added++;
       }
     }
 
-    return $inserted;
+    return $added;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getOldest(int $limit): array {
+    if ($limit < 1) {
+      return [];
+    }
+
     $results = $this->database->select(self::TABLE, 'p')
-      ->fields('p', ['id', 'tag', 'created'])
+      ->fields('p', ['id', 'tag', 'created', 'last_invalidated'])
       ->orderBy('p.id', 'ASC')
       ->range(0, $limit)
       ->execute()
@@ -136,6 +124,7 @@ class PendingTagsStore implements PendingTagsStoreInterface {
         'id' => (int) $row->id,
         'tag' => (string) $row->tag,
         'created' => (int) $row->created,
+        'last_invalidated' => (int) $row->last_invalidated,
       ],
       $results,
     );
@@ -144,13 +133,19 @@ class PendingTagsStore implements PendingTagsStoreInterface {
   /**
    * {@inheritdoc}
    */
-  public function deleteByIds(array $ids): int {
+  public function deleteDrained(array $ids, int $maxLastInvalidated): int {
     if ($ids === []) {
       return 0;
     }
 
+    // Delete only rows whose last_invalidated has not advanced past the value
+    // that was drained into the queue item (its timestamp). A row
+    // re-invalidated between the drain's read and this delete has a newer
+    // last_invalidated and is intentionally kept, so its fresh invalidation is
+    // re-drained on the next run rather than being lost.
     return (int) $this->database->delete(self::TABLE)
       ->condition('id', $ids, 'IN')
+      ->condition('last_invalidated', $maxLastInvalidated, '<=')
       ->execute();
   }
 

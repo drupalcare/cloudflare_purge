@@ -43,12 +43,3 @@ parameters:
     -
       message: '#Attribute class PHPUnit\\Framework\\Attributes\\CoversMethod is not repeatable#'
       reportUnmatched: false
-    # This class is deliberately not `final` (project preference: use @internal
-    # instead of final), but its create() factory still uses new static() per
-    # Drupal's standard ContainerInjectionInterface pattern. Safe here: the
-    # class is marked @internal and its constructor signature is fixed, so
-    # there is no risk of a subclass with an incompatible constructor.
-    -
-      identifier: new.static
-      path: src/Form/CloudflarePurgeQueuedTags.php
-      reportUnmatched: false

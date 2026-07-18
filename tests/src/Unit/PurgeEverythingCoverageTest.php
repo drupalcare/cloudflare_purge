@@ -14,36 +14,37 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Messenger\MessengerInterface;
-use Drupal\Core\Queue\QueueFactory;
-use Drupal\Core\Queue\QueueInterface;
 use Drupal\Core\State\StateInterface;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
- * Tests that purging everything clears the pending cache-tag purge queue.
+ * Tests that purging everything records a full-purge timestamp.
  *
  * A queue of cache-tag purges can build up (e.g. bulk updates against a low
  * rate limit). Once "purge everything" has cleared the whole zone, those
- * queued tags are redundant, so they should not remain to be re-purged.
+ * queued tags are redundant. Rather than deleting the queue outright — which
+ * races with tags being drained in while the purge is in flight — the service
+ * records when the purge ran; the queue worker then skips any tag purge whose
+ * invalidation predates it.
  *
  * @group cloudflare_purge
  */
 #[CoversClass(Purge::class)]
-final class PurgeEverythingQueueTest extends UnitTestCase {
+final class PurgeEverythingCoverageTest extends UnitTestCase {
 
   /**
-   * Builds a Purge service with a mocked API and queue factory.
+   * Builds a Purge service with a mocked API and state service.
    *
    * @param \Drupal\cloudflare_purge\CloudflarePurgeApiInterface $api
    *   The API mock, expected to implement purgeEverything().
-   * @param \Drupal\Core\Queue\QueueFactory $queueFactory
-   *   The queue factory mock.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   The state mock.
    *
    * @return \Drupal\cloudflare_purge\Purge
    *   The service under test.
    */
-  private function buildPurge(CloudflarePurgeApiInterface $api, QueueFactory $queueFactory): Purge {
+  private function buildPurge(CloudflarePurgeApiInterface $api, StateInterface $state): Purge {
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => match ($key) {
       'rate_limit_enabled' => FALSE,
@@ -68,10 +69,9 @@ final class PurgeEverythingQueueTest extends UnitTestCase {
       $this->createMock(LoggerChannelInterface::class),
       $this->createMock(MessengerInterface::class),
       $api,
-      $this->createMock(StateInterface::class),
+      $state,
       $this->createMock(CacheTagFormatterInterface::class),
       $credentialResolver,
-      $queueFactory,
     );
     $purge->setStringTranslation($this->getStringTranslationStub());
 
@@ -79,41 +79,40 @@ final class PurgeEverythingQueueTest extends UnitTestCase {
   }
 
   /**
-   * A successful purge-everything deletes the pending tag-purge queue.
+   * A successful purge-everything records the full-purge timestamp in state.
    */
-  public function testSuccessfulPurgeEverythingClearsQueue(): void {
+  public function testSuccessfulPurgeEverythingRecordsTimestamp(): void {
     $api = $this->createMock(CloudflarePurgeApiInterface::class);
     $api->method('purgeEverything')->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
 
-    $queue = $this->createMock(QueueInterface::class);
-    $queue->expects($this->once())->method('deleteQueue');
+    $state = $this->createMock(StateInterface::class);
+    $state->expects($this->once())
+      ->method('set')
+      ->with(
+        CloudflareCacheTagInvalidator::LAST_FULL_PURGE_STATE_KEY,
+        $this->callback(static fn($value): bool => is_int($value) && $value > 0),
+      );
 
-    $queueFactory = $this->createMock(QueueFactory::class);
-    $queueFactory->expects($this->once())
-      ->method('get')
-      ->with(CloudflareCacheTagInvalidator::QUEUE_NAME)
-      ->willReturn($queue);
-
-    $purge = $this->buildPurge($api, $queueFactory);
+    $purge = $this->buildPurge($api, $state);
     $result = $purge->purgeEverything(FALSE);
 
     $this->assertTrue($result->isSuccess());
   }
 
   /**
-   * A failed purge-everything leaves the pending tag-purge queue intact.
+   * A failed purge-everything records nothing.
    *
-   * Nothing was actually cleared on Cloudflare's side, so the queued tags
-   * are still needed and must not be discarded.
+   * Nothing was actually cleared on Cloudflare's side, so queued tags are still
+   * needed and must not be marked as covered.
    */
-  public function testFailedPurgeEverythingLeavesQueueIntact(): void {
+  public function testFailedPurgeEverythingRecordsNothing(): void {
     $api = $this->createMock(CloudflarePurgeApiInterface::class);
     $api->method('purgeEverything')->willReturn(new CloudflarePurgeResult(FALSE, 500, 'Internal Server Error'));
 
-    $queueFactory = $this->createMock(QueueFactory::class);
-    $queueFactory->expects($this->never())->method('get');
+    $state = $this->createMock(StateInterface::class);
+    $state->expects($this->never())->method('set');
 
-    $purge = $this->buildPurge($api, $queueFactory);
+    $purge = $this->buildPurge($api, $state);
     $result = $purge->purgeEverything(FALSE);
 
     $this->assertFalse($result->isSuccess());

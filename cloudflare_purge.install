@@ -38,7 +38,12 @@ function cloudflare_purge_schema(): array {
       'created' => [
         'type' => 'int',
         'not null' => TRUE,
-        'description' => 'Unix timestamp the tag was first queued for purging.',
+        'description' => 'Unix timestamp the tag was first queued for purging (FIFO / "how long waiting").',
+      ],
+      'last_invalidated' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'Unix timestamp of the most recent invalidation of this tag. Refreshed every time the tag is re-invalidated, and used for the queue-item TTL so a freshly re-invalidated tag is never discarded as stale.',
       ],
     ],
     'primary key' => ['id'],
@@ -225,6 +230,10 @@ function cloudflare_purge_uninstall(): void {
     // Clear any queued items.
     $queue = \Drupal::queue('cloudflare_purge_tags');
     $queue->deleteQueue();
+
+    // Remove module state (not owned/cleaned up automatically like config).
+    \Drupal::state()->delete('cloudflare_purge.last_purge_everything');
+    \Drupal::state()->delete('cloudflare_purge.rate_limit');
 
     // Drop the pending-tags table.
     $schema = \Drupal::database()->schema();
@@ -419,8 +428,82 @@ function cloudflare_purge_update_9007(): string {
     return (string) t('The cloudflare_purge_pending_tags table already exists.');
   }
 
-  $definition = \Drupal::moduleHandler()->invoke('cloudflare_purge', 'schema');
-  $schema->createTable('cloudflare_purge_pending_tags', $definition['cloudflare_purge_pending_tags']);
+  // The table definition is inlined here rather than read from the live
+  // hook_schema(): update hooks must reproduce the schema as it was at this
+  // point in history, so a later hook that alters the table upgrades cleanly
+  // regardless of how hook_schema() has since changed.
+  $table = [
+    'description' => 'Deduplicated cache tags awaiting a Cloudflare purge, merged by hook_cron into batched queue items.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Insertion-order surrogate key; oldest id is drained first (FIFO).',
+      ],
+      'tag_hash' => [
+        'type' => 'varchar_ascii',
+        'length' => 64,
+        'not null' => TRUE,
+        'description' => 'SHA-256 hex digest of tag, used as the dedup key (tag text itself is too long to index).',
+      ],
+      'tag' => [
+        'type' => 'varchar_ascii',
+        'length' => 1024,
+        'not null' => TRUE,
+        'description' => 'The raw cache tag text. Cloudflare cache tags are printable ASCII only, up to 1024 characters per tag.',
+      ],
+      'created' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'Unix timestamp the tag was first queued for purging (FIFO / "how long waiting").',
+      ],
+      'last_invalidated' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'Unix timestamp of the most recent invalidation of this tag. Refreshed every time the tag is re-invalidated, and used for the queue-item TTL so a freshly re-invalidated tag is never discarded as stale.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'tag_hash' => ['tag_hash'],
+    ],
+    'indexes' => [
+      'created' => ['created'],
+    ],
+  ];
+  $schema->createTable('cloudflare_purge_pending_tags', $table);
 
   return (string) t('Created the cloudflare_purge_pending_tags table used to merge duplicate cache-tag invalidations before they reach the purge queue.');
+}
+
+/**
+ * Add the last_invalidated column to cloudflare_purge_pending_tags.
+ */
+function cloudflare_purge_update_9008(): string {
+  $schema = \Drupal::database()->schema();
+
+  // Nothing to do if 9007 has not created the table yet (normal update
+  // ordering runs it first): 9007 already includes the column.
+  if (!$schema->tableExists('cloudflare_purge_pending_tags')) {
+    return (string) t('The cloudflare_purge_pending_tags table does not exist yet; nothing to alter.');
+  }
+
+  // Defensive: fresh installs and sites that ran 9007 after this column was
+  // introduced already have it; only add it where it is missing (e.g. a site
+  // that ran an earlier build of 9007 that created the table without it).
+  if ($schema->fieldExists('cloudflare_purge_pending_tags', 'last_invalidated')) {
+    return (string) t('The last_invalidated column is already present; no change needed.');
+  }
+
+  // NOT NULL with no default, matching hook_schema(). Existing rows are seeded
+  // from their created time (the best available approximation of the last
+  // invalidation) via initial_from_field, so no default value is needed.
+  $schema->addField('cloudflare_purge_pending_tags', 'last_invalidated', [
+    'type' => 'int',
+    'not null' => TRUE,
+    'description' => 'Unix timestamp of the most recent invalidation of this tag. Refreshed every time the tag is re-invalidated, and used for the queue-item TTL so a freshly re-invalidated tag is never discarded as stale.',
+    'initial_from_field' => 'created',
+  ]);
+
+  return (string) t('Added the last_invalidated column to cloudflare_purge_pending_tags.');
 }

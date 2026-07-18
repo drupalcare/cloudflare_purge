@@ -12,7 +12,9 @@ use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueInterface;
+use Drupal\Core\Queue\RequeueException;
 use Drupal\Core\Queue\SuspendQueueException;
+use Drupal\Core\State\StateInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -37,11 +39,14 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    * @param \Drupal\Core\Queue\QueueFactory|null $queueFactory
    *   An optional queue factory mock so callers can assert on requeue calls;
    *   a bare mock is created when omitted.
+   * @param int $lastFullPurge
+   *   The timestamp the state service reports for the last full zone purge; 0
+   *   (the default) means no full purge has run.
    *
    * @return \Drupal\cloudflare_purge\Plugin\QueueWorker\CloudflarePurgeQueueWorker
    *   The worker under test.
    */
-  private function buildWorker(array $configMap, PurgeInterface $purgeService, ?LoggerChannelInterface $logger = NULL, ?QueueFactory $queueFactory = NULL): CloudflarePurgeQueueWorker {
+  private function buildWorker(array $configMap, PurgeInterface $purgeService, ?LoggerChannelInterface $logger = NULL, ?QueueFactory $queueFactory = NULL, int $lastFullPurge = 0): CloudflarePurgeQueueWorker {
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => $configMap[$key] ?? NULL);
 
@@ -51,6 +56,11 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
     $logger ??= $this->createMock(LoggerChannelInterface::class);
     $queueFactory ??= $this->createMock(QueueFactory::class);
 
+    $state = $this->createMock(StateInterface::class);
+    $state->method('get')->willReturnCallback(
+      static fn(string $key, $default = NULL) => $key === 'cloudflare_purge.last_purge_everything' ? $lastFullPurge : $default,
+    );
+
     return new CloudflarePurgeQueueWorker(
       [],
       'cloudflare_purge_tags',
@@ -59,6 +69,7 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
       $logger,
       $queueFactory,
       $configFactory,
+      $state,
     );
   }
 
@@ -237,6 +248,90 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
     $worker = $this->buildWorker([], $purgeService, NULL, $queueFactory);
 
     $this->expectException(SuspendQueueException::class);
+
+    $worker->processItem(['tags' => ['node:1'], 'timestamp' => time(), 'retries' => 0]);
+  }
+
+  /**
+   * An item covered by a later full purge is discarded, no API call.
+   *
+   * The item's timestamp (its freshest invalidation) predates the recorded
+   * purge-everything, so the content is already gone from the zone.
+   */
+  public function testItemCoveredByFullPurgeIsDiscarded(): void {
+    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService->expects($this->never())->method('purgeByTags');
+
+    // Item last invalidated an hour ago; a full purge ran 30 minutes ago.
+    $worker = $this->buildWorker([], $purgeService, NULL, NULL, time() - 1800);
+
+    $worker->processItem(['tags' => ['node:1'], 'timestamp' => time() - 3600, 'retries' => 0]);
+  }
+
+  /**
+   * An item newer than the last full purge is still purged.
+   *
+   * Positive control: content invalidated after the full purge is not covered
+   * by it and must still be purged.
+   */
+  public function testItemNewerThanFullPurgeIsStillPurged(): void {
+    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService->expects($this->once())
+      ->method('purgeByTags')
+      ->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
+
+    // Full purge ran an hour ago; this invalidation is fresh.
+    $worker = $this->buildWorker([], $purgeService, NULL, NULL, time() - 3600);
+
+    $worker->processItem(['tags' => ['node:1'], 'timestamp' => time(), 'retries' => 0]);
+  }
+
+  /**
+   * A failed retry re-queue throws RequeueException instead of losing the item.
+   *
+   * Regression test: on a retriable failure the worker creates a fresh retry
+   * item and returns normally so core deletes the original. If that createItem
+   * fails (FALSE), returning normally would drop the purge, so the worker
+   * throws RequeueException and core keeps the original claimed item.
+   */
+  public function testRequeueFailureThrowsRequeueException(): void {
+    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService->method('purgeByTags')
+      ->willReturn(new CloudflarePurgeResult(FALSE, 500, 'Internal Server Error'));
+
+    $queue = $this->createMock(QueueInterface::class);
+    $queue->method('createItem')->willReturn(FALSE);
+
+    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory->method('get')->willReturn($queue);
+
+    $worker = $this->buildWorker([], $purgeService, NULL, $queueFactory);
+
+    $this->expectException(RequeueException::class);
+
+    $worker->processItem(['tags' => ['node:1'], 'timestamp' => time(), 'retries' => 0]);
+  }
+
+  /**
+   * A retry re-queue that throws is also surfaced as RequeueException.
+   *
+   * Covers the other failure mode: the queue backend throws (rather than
+   * returning FALSE) while creating the retry item.
+   */
+  public function testRequeueBackendExceptionThrowsRequeueException(): void {
+    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService->method('purgeByTags')
+      ->willReturn(new CloudflarePurgeResult(FALSE, 500, 'Internal Server Error'));
+
+    $queue = $this->createMock(QueueInterface::class);
+    $queue->method('createItem')->willThrowException(new \RuntimeException('Queue backend down'));
+
+    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory->method('get')->willReturn($queue);
+
+    $worker = $this->buildWorker([], $purgeService, NULL, $queueFactory);
+
+    $this->expectException(RequeueException::class);
 
     $worker->processItem(['tags' => ['node:1'], 'timestamp' => time(), 'retries' => 0]);
   }

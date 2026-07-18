@@ -30,7 +30,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @package Drupal\cloudflare_purge\Form
  */
-class CloudflarePurgeQueuedTags extends FormBase {
+final class CloudflarePurgeQueuedTags extends FormBase {
 
   /**
    * Constructs a CloudflarePurgeQueuedTags form.
@@ -57,8 +57,8 @@ class CloudflarePurgeQueuedTags extends FormBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container): static {
-    return new static(
+  public static function create(ContainerInterface $container): self {
+    return new self(
       $container->get('cloudflare_purge.pending_tags_store'),
       $container->get('cloudflare_purge.pending_tag_drainer'),
       $container->get('cloudflare_purge.queue_backlog_advisor'),
@@ -92,7 +92,11 @@ class CloudflarePurgeQueuedTags extends FormBase {
     $config = $this->config(CloudflarePurgeSettings::NAME);
     $useQueue = (bool) $config->get('auto_purge_use_queue');
 
-    if (!$useQueue) {
+    $pendingCount = $this->pendingTagsStore->count();
+    $queueItemCount = $this->queueFactory->get(CloudflareCacheTagInvalidator::QUEUE_NAME)->numberOfItems();
+
+    // Queueing is off and nothing is left over: purely informational.
+    if (!$useQueue && $pendingCount === 0 && $queueItemCount === 0) {
       $form['disabled'] = [
         '#type' => 'markup',
         '#markup' => '<p>' . $this->t('Automatic purging is not currently using the queue, so nothing is queued here. Tags are purged immediately instead. Enable <a href=":settings">"Use queue for automatic purging"</a> to batch and deduplicate purge requests.', [
@@ -102,27 +106,33 @@ class CloudflarePurgeQueuedTags extends FormBase {
       return $form;
     }
 
-    foreach ($this->backlogAdvisor->getWarnings() as $warning) {
-      $this->messenger()->addWarning($warning);
-    }
+    if ($useQueue) {
+      // Advisory backlog warnings only apply while queueing is enabled.
+      foreach ($this->backlogAdvisor->getWarnings() as $warning) {
+        $this->messenger()->addWarning($warning);
+      }
 
-    $form['description'] = [
-      '#type' => 'markup',
-      '#markup' => '<p>' . $this->t('Cache tags invalidated while auto-purge is queueing are merged into a deduplicated set here, so repeated invalidations of the same tag (a resave, several entities sharing a listing tag, etc.) never create duplicate purge requests. On every cron run, they are drained oldest-first into <a href=":limits">Cloudflare-sized</a> queue items for the <a href=":history">purge queue worker</a> to process.', [
-        ':limits' => Url::fromRoute('cloudflare_purge.limits')->toString(),
-        ':history' => Url::fromRoute('cloudflare_purge.history')->toString(),
-      ]) . '</p>',
-    ];
-
-    $pendingCount = $this->pendingTagsStore->count();
-    $queueItemCount = $this->queueFactory->get(CloudflareCacheTagInvalidator::QUEUE_NAME)->numberOfItems();
-
-    if ($pendingCount === 0 && $queueItemCount === 0) {
-      $form['empty'] = [
+      $form['description'] = [
         '#type' => 'markup',
-        '#markup' => '<p>' . $this->t('No cache tags are currently queued for a Cloudflare purge.') . '</p>',
+        '#markup' => '<p>' . $this->t('Cache tags invalidated while auto-purge is queueing are merged into a deduplicated set here, so repeated invalidations of the same tag (a resave, several entities sharing a listing tag, etc.) never create duplicate purge requests. On every cron run, they are drained oldest-first into <a href=":limits">Cloudflare-sized</a> queue items for the <a href=":history">purge queue worker</a> to process.', [
+          ':limits' => Url::fromRoute('cloudflare_purge.limits')->toString(),
+          ':history' => Url::fromRoute('cloudflare_purge.history')->toString(),
+        ]) . '</p>',
       ];
-      return $form;
+
+      if ($pendingCount === 0 && $queueItemCount === 0) {
+        $form['empty'] = [
+          '#type' => 'markup',
+          '#markup' => '<p>' . $this->t('No cache tags are currently queued for a Cloudflare purge.') . '</p>',
+        ];
+        return $form;
+      }
+    }
+    else {
+      // Queueing was turned off, but tags queued beforehand are still here.
+      // Cron drains them regardless of the setting; explain that and offer to
+      // process them now so they are never stranded.
+      $this->messenger()->addWarning($this->t('Automatic purging is no longer using the queue, but some cache tags queued beforehand are still being processed. They are drained and purged automatically on cron; anything still pending a drain can be processed now below.'));
     }
 
     $rows = [
@@ -147,12 +157,24 @@ class CloudflarePurgeQueuedTags extends FormBase {
       '#attributes' => ['class' => ['cloudflare-purge-queued-stats']],
     ];
 
-    $form['actions'] = ['#type' => 'actions'];
-    $form['actions']['drain'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Drain queued tags now'),
-      '#button_type' => 'primary',
-    ];
+    // Only offer a manual drain when there is something to drain. Draining
+    // promotes pending tags into queue items; it does not process items already
+    // in the queue (the queue worker does that on cron), so with nothing
+    // pending the button would be a no-op.
+    if ($pendingCount > 0) {
+      $form['actions'] = ['#type' => 'actions'];
+      $form['actions']['drain'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Drain queued tags now'),
+        '#button_type' => 'primary',
+      ];
+    }
+    elseif ($queueItemCount > 0) {
+      $form['queued_note'] = [
+        '#type' => 'markup',
+        '#markup' => '<p>' . $this->t('Nothing is pending a drain right now. The batched purge request(s) already queued are processed by the queue worker on the next cron run.') . '</p>',
+      ];
+    }
 
     return $form;
   }
@@ -162,10 +184,15 @@ class CloudflarePurgeQueuedTags extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     try {
+      // Read the pending count first so a zero result can be reported
+      // accurately: genuinely empty versus a concurrent drain holding the lock.
+      $pendingBefore = $this->pendingTagsStore->count();
       $drained = $this->drainer->drain();
 
       if ($drained === 0) {
-        $this->messenger()->addStatus($this->t('No pending tags to drain (another drain may already be running).'));
+        $this->messenger()->addStatus($pendingBefore === 0
+          ? $this->t('No pending tags to drain.')
+          : $this->t('No tags were drained; another drain may already be running. Try again in a moment.'));
       }
       else {
         $this->messenger()->addStatus($this->formatPlural(

@@ -13,7 +13,6 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Messenger\MessengerInterface;
-use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\State\StateInterface;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -100,7 +99,6 @@ final class PurgeBatchingTest extends UnitTestCase {
       $state,
       $formatter,
       $credentialResolver,
-      $this->createMock(QueueFactory::class),
     );
     $purge->setStringTranslation($this->getStringTranslationStub());
 

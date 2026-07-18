@@ -70,7 +70,7 @@ class QueueBacklogAdvisor implements QueueBacklogAdvisorInterface {
     $queueItemCount = $this->queueFactory->get(CloudflareCacheTagInvalidator::QUEUE_NAME)->numberOfItems();
 
     $warning = ($config->get('rate_limit_enabled') === TRUE)
-      ? $this->slowDrainWarning($config, $queueItemCount)
+      ? $this->slowDrainWarning($config, $pendingCount, $queueItemCount)
       : $this->highTagCountWarning($pendingCount, $queueItemCount);
 
     if ($warning === NULL) {
@@ -114,31 +114,44 @@ class QueueBacklogAdvisor implements QueueBacklogAdvisorInterface {
   /**
    * Builds the "rate limit too slow to keep up" warning, if it applies.
    *
+   * The estimate includes the pending set as well as the queue: pending tags
+   * are drained into roughly ceil(pending / MAX_BATCH_SIZE) further requests,
+   * so counting only already-queued items would understate the backlog at the
+   * very moment it is largest — right after a burst of invalidations, before
+   * the next cron drain has run.
+   *
    * @param \Drupal\Core\Config\ImmutableConfig $config
    *   The module's settings.
+   * @param int $pendingCount
+   *   The number of distinct tags in the pending set.
    * @param int $queueItemCount
    *   The number of items already in the Cloudflare purge queue.
    *
    * @return \Drupal\Core\StringTranslation\TranslatableMarkup|null
    *   The warning, or NULL if the estimated drain time isn't long enough.
    */
-  private function slowDrainWarning(ImmutableConfig $config, int $queueItemCount): ?TranslatableMarkup {
+  private function slowDrainWarning(ImmutableConfig $config, int $pendingCount, int $queueItemCount): ?TranslatableMarkup {
     $ratePerMinute = (int) ($config->get('rate_limit_per_minute') ?? 0);
 
-    if ($ratePerMinute < 1 || $queueItemCount === 0) {
+    // Pending tags become at least this many additional purge requests once
+    // drained (one request per Cloudflare-sized batch).
+    $pendingRequests = (int) ceil($pendingCount / CloudflarePurgeApi::MAX_BATCH_SIZE);
+    $estimatedRequests = $queueItemCount + $pendingRequests;
+
+    if ($ratePerMinute < 1 || $estimatedRequests === 0) {
       return NULL;
     }
 
-    $minutesToClear = $queueItemCount / $ratePerMinute;
+    $minutesToClear = $estimatedRequests / $ratePerMinute;
 
     if ($minutesToClear <= self::SLOW_DRAIN_MINUTES_THRESHOLD) {
       return NULL;
     }
 
-    return $this->t('Your configured rate limit (@rate requests/minute) would take approximately @minutes minutes to clear the @count purge request(s) currently queued. Check your logs to see if Cloudflare is returning any 429 responses, which may indicate the queue is growing faster than it can be purged. If this is a one-off due to temporarily high content changes, consider a full cache clear instead.', [
+    return $this->t('Your configured rate limit (@rate requests/minute) would take approximately @minutes minutes to clear the @count purge request(s) currently awaiting a Cloudflare purge (queued items plus tags still pending a drain). This is a theoretical minimum; actual throughput is also bounded by how often cron runs. Check your logs to see if Cloudflare is returning any 429 responses, which may indicate the backlog is growing faster than it can be purged. If this is a one-off due to temporarily high content changes, consider a full cache clear instead.', [
       '@rate' => $ratePerMinute,
       '@minutes' => (int) ceil($minutesToClear),
-      '@count' => $queueItemCount,
+      '@count' => $estimatedRequests,
     ]);
   }
 

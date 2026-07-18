@@ -23,8 +23,10 @@ interface PendingTagsStoreInterface {
   /**
    * Merges tags into the pending set.
    *
-   * A tag already pending is left untouched (its original queued time is
-   * preserved for FIFO ordering and TTL discarding); it is not duplicated.
+   * A tag already pending keeps its original insertion order and created time
+   * (for FIFO ordering) but has its last_invalidated timestamp refreshed, so a
+   * re-invalidated tag is never treated as stale by the queue TTL. It is never
+   * duplicated.
    *
    * @param array<int, string> $tags
    *   The cache tags to merge in.
@@ -40,21 +42,26 @@ interface PendingTagsStoreInterface {
    * @param int $limit
    *   The maximum number of rows to return.
    *
-   * @return array<int, array{id: int, tag: string, created: int}>
+   * @return array<int, array{id: int, tag: string, created: int, last_invalidated: int}>
    *   Rows ordered oldest first (FIFO).
    */
   public function getOldest(int $limit): array;
 
   /**
-   * Removes tags from the pending set by row ID.
+   * Removes drained rows, skipping any re-invalidated since they were read.
    *
    * @param array<int, int> $ids
    *   The row IDs to remove, typically the IDs returned by getOldest().
+   * @param int $maxLastInvalidated
+   *   The queue item's timestamp (the freshest last_invalidated in the drained
+   *   batch). Rows whose last_invalidated has since advanced beyond this value
+   *   are kept — they were re-invalidated after the drain read them and must
+   *   be drained again rather than lost.
    *
    * @return int
    *   The number of rows deleted.
    */
-  public function deleteByIds(array $ids): int;
+  public function deleteDrained(array $ids, int $maxLastInvalidated): int;
 
   /**
    * Counts the number of tags currently pending.

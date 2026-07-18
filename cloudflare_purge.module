@@ -82,7 +82,7 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
       return '<p>' . t('Enter hostnames to purge all cached content for those domains. Available on all Cloudflare plans.') . '</p>';
 
     case 'cloudflare_purge.queued_tags':
-      return '<p>' . t('Cache tags queued for a Cloudflare purge are merged into a deduplicated set so repeated invalidations of the same tag never create duplicate purge requests. This page is only relevant when queueing is enabled for automatic purging.') . '</p>';
+      return '<p>' . t('Cache tags queued for a Cloudflare purge are merged into a deduplicated set so repeated invalidations of the same tag never create duplicate purge requests. This page is most relevant when queueing is enabled for automatic purging; it also lets you review and drain any tags left over after queueing is turned off.') . '</p>';
 
     default:
       return '';
@@ -99,9 +99,14 @@ function cloudflare_purge_cron(): void {
     // Merge pending cache tags into batched, FIFO-ordered queue items before
     // the queue worker (which core's cron already invokes) runs. The queue
     // worker itself handles the actual purge processing.
-    if ($config->get('auto_purge_use_queue') === TRUE) {
-      \Drupal::service('cloudflare_purge.pending_tag_drainer')->drain();
-    }
+    //
+    // This runs unconditionally, not only while queueing is enabled: the drain
+    // is a cheap no-op when the pending set is empty, and running it always
+    // means tags left pending when queueing is turned off (or on setups that
+    // process the queue separately from cron) are still drained and purged
+    // rather than stranded. The drainer takes its own lock, so overlapping
+    // cron runs are safe.
+    \Drupal::service('cloudflare_purge.pending_tag_drainer')->drain();
 
     // Log cron run if detailed logging is enabled.
     if ($config->get('logging_enabled') === TRUE) {

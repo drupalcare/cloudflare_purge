@@ -92,14 +92,16 @@ cloudflare_purge.purge_everything:
   options:
     _admin_route: TRUE
 
-# Cache tags queued for a Cloudflare purge (queue mode only).
+# Cache tags queued for a Cloudflare purge (queue mode only). Reachable by
+# either a purge operator or a Cloudflare Purge administrator, so the link from
+# the (admin-only) Auto-Purge Settings form never resolves to a 403.
 cloudflare_purge.queued_tags:
   path: '/admin/config/cloudflare-purge/queued-tags'
   defaults:
     _form: '\Drupal\cloudflare_purge\Form\CloudflarePurgeQueuedTags'
     _title: 'Queued Tags'
   requirements:
-    _permission: 'cloudflare purge'
+    _permission: 'administer cloudflare purge+cloudflare purge'
   options:
     _admin_route: TRUE
 

@@ -66,6 +66,14 @@ cloudflare_purge.purge_everything:
   parent: cloudflare_purge.admin
   weight: 60
 
+# Queued tags (deduplicated pending set + drain, queue mode).
+cloudflare_purge.queued_tags:
+  title: 'Queued Tags'
+  description: 'Review cache tags queued for a Cloudflare purge and drain them.'
+  route_name: cloudflare_purge.queued_tags
+  parent: cloudflare_purge.admin
+  weight: 70
+
 # Purge history.
 cloudflare_purge.history:
   title: 'Purge History'

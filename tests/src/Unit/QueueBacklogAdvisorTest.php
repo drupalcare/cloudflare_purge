@@ -136,6 +136,30 @@ final class QueueBacklogAdvisorTest extends UnitTestCase {
   }
 
   /**
+   * Pending tags count toward the rate-limited drain estimate.
+   *
+   * Regression test: the estimate must include tags still in the pending set
+   * (each becomes ~1 request per MAX_BATCH_SIZE once drained), not only items
+   * already in the queue — otherwise the advisory is silent right after a
+   * burst of invalidations, before the next cron drain, exactly when the
+   * backlog is largest.
+   */
+  public function testRateLimitCountsPendingTowardEstimate(): void {
+    // 11000 pending tags => ceil(11000 / 100) = 110 requests; nothing queued
+    // yet. At 10/minute that is 11 minutes, over the 10-minute threshold.
+    $advisor = $this->buildAdvisor([
+      'auto_purge_use_queue' => TRUE,
+      'rate_limit_enabled' => TRUE,
+      'rate_limit_per_minute' => 10,
+      'queue_max_age_enabled' => TRUE,
+    ], 11000, 0);
+
+    $warnings = $advisor->getWarnings();
+    $this->assertCount(1, $warnings);
+    $this->assertStringContainsString('11 minutes', (string) $warnings[0]);
+  }
+
+  /**
    * A zero or invalid rate limit never divides-by-zero into a warning.
    */
   public function testRateLimitZeroDoesNotWarn(): void {
