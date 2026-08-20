@@ -90,6 +90,38 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
 }
 
 /**
+ * Implements hook_cache_flush().
+ *
+ * A full Drupal cache flush invalidates every cache tag at once, so the only
+ * faithful Cloudflare action is to purge the entire zone. Core invokes this
+ * hook from drupal_flush_all_caches() immediately before the cache bins are
+ * cleared, on Drupal 10, 11 and 12 alike.
+ *
+ * This is deliberately a procedural hook rather than
+ * \Drupal\Core\Cache\CacheTagsPurgeInterface, which core only added in Drupal
+ * 11.2: implementing that interface made the invalidator fatal to autoload on
+ * Drupal 10 (issue #3614126). hook_cache_flush() runs at the same point in the
+ * flush on every supported core version, so one code path covers them all.
+ *
+ * The purge itself is opt-in (purge_everything_on_flush) and off by default;
+ * the invalidator applies that check along with the installer and credential
+ * guards.
+ */
+function cloudflare_purge_cache_flush(): void {
+  // This runs inside the critical cache-rebuild path. An unavailable service
+  // or a Cloudflare failure must never interrupt the flush, so everything is
+  // swallowed here as well as inside the invalidator.
+  try {
+    \Drupal::service('cloudflare_purge.cache_tag_invalidator')->purgeEverythingOnFlush();
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('cloudflare_purge')->error('Error during cache flush purge: @message', [
+      '@message' => $e->getMessage(),
+    ]);
+  }
+}
+
+/**
  * Implements hook_cron().
  */
 function cloudflare_purge_cron(): void {

@@ -8,7 +8,6 @@ use Drupal\cloudflare_purge\CloudflarePurgeSettings;
 use Drupal\cloudflare_purge\PendingTagsStoreInterface;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
-use Drupal\Core\Cache\CacheTagsPurgeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Installer\InstallerKernel;
 use Drupal\Core\Logger\LoggerChannelInterface;
@@ -22,7 +21,7 @@ use Drupal\Core\Logger\LoggerChannelInterface;
  *
  * @package Drupal\cloudflare_purge\Cache
  */
-final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterface, CacheTagsPurgeInterface {
+final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterface {
 
   /**
    * Queue name for deferred purge operations.
@@ -105,17 +104,25 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
   }
 
   /**
-   * {@inheritdoc}
+   * Purges the entire Cloudflare zone in response to a full Drupal cache flush.
    *
-   * Core calls this from the cache_tags.invalidator service during
-   * drupal_flush_all_caches() (e.g. `drush cr`, the "Clear all caches" button,
-   * or rebuild_cache_access), immediately before the cache bins are cleared. A
-   * full flush invalidates every Drupal cache tag, so the only faithful
-   * Cloudflare action is to purge the entire zone. Because a full flush happens
-   * often (every rebuild, deploy, and module install), this is opt-in and off
-   * by default so routine `drush cr` never purges the CDN unexpectedly.
+   * Invoked from cloudflare_purge_cache_flush() (hook_cache_flush()), which
+   * drupal_flush_all_caches() calls on every full flush — `drush cr`, the
+   * "Clear all caches" button, rebuild.php, and every module install — just
+   * before the cache bins are cleared. A full flush invalidates every Drupal
+   * cache tag, so the only faithful Cloudflare action is to purge the whole
+   * zone. Because a full flush is routine, this is opt-in and off by default so
+   * an ordinary `drush cr` never purges the CDN unexpectedly.
+   *
+   * Deliberately NOT wired through \Drupal\Core\Cache\CacheTagsPurgeInterface:
+   * that interface only exists in Drupal 11.2 and later, and implementing it
+   * here made this class fatal to autoload on Drupal 10 (issue #3614126).
+   * hook_cache_flush() is invoked from the same place in
+   * drupal_flush_all_caches() on Drupal 10, 11 and 12 alike, so one code path
+   * serves every supported core version. Do not re-add the interface while the
+   * module still declares Drupal 10 support.
    */
-  public function purge(): void {
+  public function purgeEverythingOnFlush(): void {
     $config = $this->configFactory->get(CloudflarePurgeSettings::NAME);
 
     // Opt-in only.

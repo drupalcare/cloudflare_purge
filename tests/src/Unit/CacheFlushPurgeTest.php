@@ -17,11 +17,16 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tests the full-cache-flush purge (CacheTagsPurgeInterface::purge()).
+ * Tests the full-cache-flush purge decision logic.
  *
- * Core calls purge() on the cache_tags.invalidator during
- * drupal_flush_all_caches() (e.g. `drush cr`). The invalidator maps that to a
- * full Cloudflare zone purge, but only when opted in and credentialed.
+ * The hook implementation cloudflare_purge_cache_flush() calls
+ * purgeEverythingOnFlush() during drupal_flush_all_caches() (e.g. `drush cr`).
+ * The invalidator maps that to a full Cloudflare zone purge, but only when
+ * opted in and credentialed.
+ *
+ * These tests call the method directly, so they cover the decision logic only.
+ * That the flush actually reaches this method is covered by
+ * \Drupal\Tests\cloudflare_purge\Kernel\CacheFlushPurgeWiringTest.
  *
  * @group cloudflare_purge
  */
@@ -62,7 +67,7 @@ final class CacheFlushPurgeTest extends TestCase {
   }
 
   /**
-   * When enabled and credentialed, purge() purges the entire zone once.
+   * When enabled and credentialed, the flush purges the entire zone once.
    */
   public function testFlushPurgesEntireZoneWhenEnabled(): void {
     $purgeService = $this->createMock(PurgeInterface::class);
@@ -71,41 +76,42 @@ final class CacheFlushPurgeTest extends TestCase {
       ->with(FALSE)
       ->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
 
-    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purge();
+    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purgeEverythingOnFlush();
   }
 
   /**
-   * When the opt-in setting is off, purge() does nothing.
+   * When the opt-in setting is off, the flush does nothing.
    */
   public function testFlushDoesNothingWhenDisabled(): void {
     $purgeService = $this->createMock(PurgeInterface::class);
     $purgeService->expects($this->never())->method('purgeEverything');
 
-    $this->buildInvalidator(FALSE, $purgeService, TRUE)->purge();
+    $this->buildInvalidator(FALSE, $purgeService, TRUE)->purgeEverythingOnFlush();
   }
 
   /**
-   * Without credentials, purge() does not attempt a purge even when enabled.
+   * Without credentials, the flush does not purge even when enabled.
    */
   public function testFlushDoesNothingWithoutCredentials(): void {
     $purgeService = $this->createMock(PurgeInterface::class);
     $purgeService->expects($this->never())->method('purgeEverything');
 
-    $this->buildInvalidator(TRUE, $purgeService, FALSE)->purge();
+    $this->buildInvalidator(TRUE, $purgeService, FALSE)->purgeEverythingOnFlush();
   }
 
   /**
    * A Cloudflare failure during flush is swallowed, never rethrown.
    *
-   * Because purge() runs inside the critical cache-rebuild path, an API
-   * exception must not escape and interrupt drupal_flush_all_caches().
+   * Because purgeEverythingOnFlush() runs inside the critical cache-rebuild
+   * path, an API exception must not escape and interrupt
+   * drupal_flush_all_caches().
    */
   public function testFlushSwallowsPurgeExceptions(): void {
     $purgeService = $this->createMock(PurgeInterface::class);
     $purgeService->method('purgeEverything')
       ->willThrowException(new \RuntimeException('Cloudflare unreachable'));
 
-    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purge();
+    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purgeEverythingOnFlush();
     $this->addToAssertionCount(1);
   }
 

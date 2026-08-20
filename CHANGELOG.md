@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fatal error on Drupal 10: `Interface "Drupal\Core\Cache\CacheTagsPurgeInterface" not found` (#3614126). 3.1.2 wired the flush-time zone purge through `CacheTagsPurgeInterface`, which core only added in 11.2, while the module still declares `^10` support. Because PHP resolves an `implements` clause when the class is compiled, `CloudflareCacheTagInvalidator` — a tagged `cache_tags_invalidator` service, so loaded on any cache-tag invalidation — became fatal to autoload on Drupal 10, taking the site down. The flush purge is now triggered from `hook_cache_flush()` instead, which `drupal_flush_all_caches()` invokes at the same point in the flush on Drupal 10, 11 and 12 alike, so one code path serves every supported core version and the opt-in `purge_everything_on_flush` setting keeps working on all of them. Simply removing the interface (as an interim patch on the issue did) fixes Drupal 10 but silently disables the feature on 11.2+, because core dispatches the purge on an `instanceof` check.
+- Verified by loading the class under a real Drupal 10.5.6 autoloader (fatal before, clean after) and by running the full suite on Drupal 11.4.5 and 12.0-dev.
+
+### Changed
+- `CloudflareCacheTagInvalidator::purge()` is renamed to `purgeEverythingOnFlush()`, since it is no longer a core interface method. Its behavior, guards and opt-in setting are unchanged. Internal to the module's own service; no configuration or API surface a site depends on changes.
+
+### Added
+- `CacheFlushPurgeWiringTest` kernel test asserting that a cache flush actually reaches the zone purge through the real container and hook dispatch, and that the invalidator does not implement a core-version-specific interface. The existing unit test calls the method directly, so it stayed green through both the Drupal 10 fatal and the "feature silently does nothing" regression; this test fails on either.
+
 ## [3.1.2] - 2026-07-18
 
 ### Added
