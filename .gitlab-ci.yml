@@ -16,3 +16,24 @@ include:
       - '/includes/include.drupalci.main.yml'
       - '/includes/include.drupalci.variables.yml'
       - '/includes/include.drupalci.workflows.yml'
+
+################
+# Test every core version this module claims to support.
+#
+# info.yml declares `core_version_requirement: ^10 || ^11`, but the DA template
+# only tests the current core version by default (OPT_IN_TEST_CURRENT), and all
+# the other variants default to '0'. That gap is how 3.1.2 shipped a class that
+# was fatal to autoload on Drupal 10 with a fully green pipeline (#3614126).
+#
+# `phpunit (previous major)` and `phpunit (previous minor)` carry no
+# allow_failure in the template, so a break on Drupal 10 or on the previous
+# minor now turns the pipeline red instead of going unnoticed until release.
+#
+# Next minor/major are deliberately left off here: those jobs are
+# allow_failure: true, so they would not gate anything, and this branch does
+# not claim Drupal 12 support. Turn on OPT_IN_TEST_NEXT_MAJOR with the Drupal
+# 12 work, when the ^12 constraint actually lands.
+################
+variables:
+  OPT_IN_TEST_PREVIOUS_MAJOR: '1'
+  OPT_IN_TEST_PREVIOUS_MINOR: '1'
