@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.3] - 2026-08-20
+
 ### Fixed
 - Fatal error on Drupal 10: `Interface "Drupal\Core\Cache\CacheTagsPurgeInterface" not found` (#3614126). 3.1.2 wired the flush-time zone purge through `CacheTagsPurgeInterface`, which core only added in 11.2, while the module still declares `^10` support. Because PHP resolves an `implements` clause when the class is compiled, `CloudflareCacheTagInvalidator` — a tagged `cache_tags_invalidator` service, so loaded on any cache-tag invalidation — became fatal to autoload on Drupal 10, taking the site down. The flush purge is now triggered from `hook_cache_flush()` instead, which `drupal_flush_all_caches()` invokes at the same point in the flush on Drupal 10, 11 and 12 alike, so one code path serves every supported core version and the opt-in `purge_everything_on_flush` setting keeps working on all of them. Simply removing the interface (as an interim patch on the issue did) fixes Drupal 10 but silently disables the feature on 11.2+, because core dispatches the purge on an `instanceof` check.
 - Verified by loading the class under a real Drupal 10.5.6 autoloader (fatal before, clean after) and by running the full suite on Drupal 11.4.5 and 12.0-dev.
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - The test suite now runs on Drupal 10 as well as 11 and 12. Drupal 10 ships PHPUnit 9, which ignores PHP attributes, so `PrefixNormalizerTest`'s two `#[DataProvider]` methods received no arguments and errored with `ArgumentCountError`; they now carry the equivalent `@dataProvider` annotation as well, which PHPUnit 9 reads and 10+ ignores in favour of the attribute (verified: 18 tests, no duplicate rows, on PHPUnit 9.6, 11.5 and 12.5). `phpunit.xml` also dropped its `<source>` element, which is PHPUnit 10+ only and made PHPUnit 9 print "the configuration file did not pass validation" followed by "Test results may not be as expected" on every run.
+- CI now runs the suite against every core version the module declares, not only the current one. The DA GitLab template tests current core by default (`OPT_IN_TEST_CURRENT`), with every other variant defaulting to off, which is how 3.1.2 shipped a class that was fatal on Drupal 10 with a fully green pipeline. `.gitlab-ci.yml` opts in to previous major (Drupal 10) and previous minor; neither job carries `allow_failure`, so a break on either now turns the pipeline red before a release rather than after it. Each variant needs two switches: `OPT_IN_TEST_*` decides whether the job exists and `_AUTORUN_*` decides whether it runs rather than waiting behind a manual prerequisite — setting only the first produces a job that appears in the pipeline and is silently skipped.
 - `CacheFlushPurgeWiringTest` kernel test asserting that a cache flush actually reaches the zone purge through the real container and hook dispatch, and that the invalidator does not implement a core-version-specific interface. The existing unit test calls the method directly, so it stayed green through both the Drupal 10 fatal and the "feature silently does nothing" regression; this test fails on either.
 
 ## [3.1.2] - 2026-07-18
