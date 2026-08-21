@@ -13,9 +13,12 @@
       <directory>./tests/src/Kernel</directory>
     </testsuite>
   </testsuites>
-  <source>
-    <include>
-      <directory suffix=".php">./src</directory>
-    </include>
-  </source>
+  <!--
+    No <source> element: it is PHPUnit 10+ only, and Drupal 10 ships PHPUnit 9,
+    which rejects it with "Element 'source': This element is not expected" and
+    then warns "Test results may not be as expected" on every run. PHPUnit 9's
+    equivalent (<coverage><include>) is in turn deprecated in 10+, so no single
+    element spans the versions this module supports. Nothing here generates
+    coverage; pass the coverage-filter option on the command line if you need it.
+  -->
 </phpunit>

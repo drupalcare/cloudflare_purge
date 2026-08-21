@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CloudflareCacheTagInvalidator::purge()` is renamed to `purgeEverythingOnFlush()`, since it is no longer a core interface method. Its behavior, guards and opt-in setting are unchanged. Internal to the module's own service; no configuration or API surface a site depends on changes.
 
 ### Added
+- The test suite now runs on Drupal 10 as well as 11 and 12. Drupal 10 ships PHPUnit 9, which ignores PHP attributes, so `PrefixNormalizerTest`'s two `#[DataProvider]` methods received no arguments and errored with `ArgumentCountError`; they now carry the equivalent `@dataProvider` annotation as well, which PHPUnit 9 reads and 10+ ignores in favour of the attribute (verified: 18 tests, no duplicate rows, on PHPUnit 9.6, 11.5 and 12.5). `phpunit.xml` also dropped its `<source>` element, which is PHPUnit 10+ only and made PHPUnit 9 print "the configuration file did not pass validation" followed by "Test results may not be as expected" on every run.
 - `CacheFlushPurgeWiringTest` kernel test asserting that a cache flush actually reaches the zone purge through the real container and hook dispatch, and that the invalidator does not implement a core-version-specific interface. The existing unit test calls the method directly, so it stayed green through both the Drupal 10 fatal and the "feature silently does nothing" regression; this test fails on either.
 
 ## [3.1.2] - 2026-07-18

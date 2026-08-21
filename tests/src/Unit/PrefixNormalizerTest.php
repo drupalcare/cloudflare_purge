@@ -19,6 +19,8 @@ class PrefixNormalizerTest extends UnitTestCase {
 
   /**
    * Tests that schemes are stripped from prefixes.
+   *
+   * @dataProvider normalizeProvider
    */
   #[DataProvider('normalizeProvider')]
   public function testNormalize(string $input, string $expected): void {
@@ -57,6 +59,8 @@ class PrefixNormalizerTest extends UnitTestCase {
 
   /**
    * Tests prefix validity detection.
+   *
+   * @dataProvider isValidProvider
    */
   #[DataProvider('isValidProvider')]
   public function testIsValid(string $input, bool $expected): void {
