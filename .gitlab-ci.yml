@@ -31,8 +31,10 @@ include:
 #
 # Next minor/major are deliberately left off here: those jobs are
 # allow_failure: true, so they would not gate anything, and this branch does
-# not claim Drupal 12 support. Turn on OPT_IN_TEST_NEXT_MAJOR with the Drupal
-# 12 work, when the ^12 constraint actually lands.
+# NEXT MAJOR is now ON. This branch previously did not claim Drupal 12 and this
+# file said so; the claim has since landed in info.yml and composer.json, and
+# the module has been verified installing and running on 12.0-dev. A claim
+# without a job is exactly what this whole sweep existed to find.
 ################
 # Two switches are needed per variant, not one. OPT_IN_TEST_* decides whether
 # the job is created at all; _AUTORUN_* decides whether it runs by itself or
@@ -44,3 +46,5 @@ variables:
   _AUTORUN_PREVIOUS_MAJOR: 'all'
   OPT_IN_TEST_PREVIOUS_MINOR: '1'
   _AUTORUN_PREVIOUS_MINOR: 'all'
+  OPT_IN_TEST_NEXT_MAJOR: '1'
+  _AUTORUN_NEXT_MAJOR: 'all'
