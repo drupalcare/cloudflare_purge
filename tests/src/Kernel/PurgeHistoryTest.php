@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Kernel;
 
+use Drupal\cloudflare_purge\PurgeHistory;
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\cloudflare_purge\PurgeHistoryInterface;
@@ -15,8 +17,9 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
  *
  * @group cloudflare_purge
  */
-#[CoversClass(\Drupal\cloudflare_purge\PurgeHistory::class)]
+#[CoversClass(PurgeHistory::class)]
 #[RunTestsInSeparateProcesses]
+#[Group('cloudflare_purge')]
 final class PurgeHistoryTest extends KernelTestBase {
 
   /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\PrefixNormalizer;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -15,6 +16,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * @group cloudflare_purge
  */
 #[CoversClass(PrefixNormalizer::class)]
+#[Group('cloudflare_purge')]
 class PrefixNormalizerTest extends UnitTestCase {
 
   /**

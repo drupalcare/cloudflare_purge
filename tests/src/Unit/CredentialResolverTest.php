@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\CloudflarePurgeSettings;
 use Drupal\cloudflare_purge\CredentialResolver;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -19,6 +20,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * @group cloudflare_purge
  */
 #[CoversClass(CredentialResolver::class)]
+#[Group('cloudflare_purge')]
 class CredentialResolverTest extends UnitTestCase {
 
   /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\PendingTagDrainer;
 use Drupal\cloudflare_purge\PendingTagsStoreInterface;
 use Drupal\Core\Lock\LockBackendInterface;
@@ -19,6 +20,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * @group cloudflare_purge
  */
 #[CoversClass(PendingTagDrainer::class)]
+#[Group('cloudflare_purge')]
 final class PendingTagDrainerFailureTest extends UnitTestCase {
 
   /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface;
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
 use Drupal\cloudflare_purge\CloudflarePurgeApiInterface;
@@ -31,6 +32,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * @group cloudflare_purge
  */
 #[CoversClass(Purge::class)]
+#[Group('cloudflare_purge')]
 final class PurgeEverythingCoverageTest extends UnitTestCase {
 
   /**

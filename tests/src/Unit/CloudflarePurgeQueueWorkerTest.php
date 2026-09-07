@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\CloudflarePurgeResult;
 use Drupal\cloudflare_purge\Plugin\QueueWorker\CloudflarePurgeQueueWorker;
 use Drupal\cloudflare_purge\PurgeInterface;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\TestCase;
  * @group cloudflare_purge
  */
 #[CoversClass(CloudflarePurgeQueueWorker::class)]
+#[Group('cloudflare_purge')]
 class CloudflarePurgeQueueWorkerTest extends TestCase {
 
   /**

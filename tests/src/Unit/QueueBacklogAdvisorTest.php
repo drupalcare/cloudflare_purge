@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\Tests\UnitTestCase;
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
 use Drupal\cloudflare_purge\PendingTagsStoreInterface;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * @group cloudflare_purge
  */
 #[CoversClass(QueueBacklogAdvisor::class)]
+#[Group('cloudflare_purge')]
 final class QueueBacklogAdvisorTest extends UnitTestCase {
 
   /**

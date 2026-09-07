@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\Cache\CacheTagFormatter;
 use Drupal\cloudflare_purge\CloudflarePurgeSettings;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -18,6 +19,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * @group cloudflare_purge
  */
 #[CoversClass(CacheTagFormatter::class)]
+#[Group('cloudflare_purge')]
 class CacheTagFormatterTest extends UnitTestCase {
 
   /**

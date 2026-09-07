@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Kernel;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\Controller\CloudflarePurgeController;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Logger\RfcLogLevel;
@@ -23,6 +24,7 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 #[CoversMethod(CloudflarePurgeController::class, 'formatWatchdogMessage')]
 #[CoversMethod(CloudflarePurgeController::class, 'history')]
 #[RunTestsInSeparateProcesses]
+#[Group('cloudflare_purge')]
 final class CloudflarePurgeHistoryTest extends KernelTestBase {
 
   /**

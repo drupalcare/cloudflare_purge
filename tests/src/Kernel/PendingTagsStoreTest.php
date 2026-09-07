@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Kernel;
 
+use Drupal\cloudflare_purge\PendingTagsStore;
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\cloudflare_purge\PendingTagsStoreInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -14,8 +16,9 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
  *
  * @group cloudflare_purge
  */
-#[CoversClass(\Drupal\cloudflare_purge\PendingTagsStore::class)]
+#[CoversClass(PendingTagsStore::class)]
 #[RunTestsInSeparateProcesses]
+#[Group('cloudflare_purge')]
 class PendingTagsStoreTest extends KernelTestBase {
 
   /**

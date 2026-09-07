@@ -91,3 +91,11 @@ services:
       - '@cloudflare_purge.cache_tag_formatter'
     tags:
       - { name: event_subscriber }
+
+  Drupal\cloudflare_purge\Hook\CloudflarePurgeHooks:
+    class: Drupal\cloudflare_purge\Hook\CloudflarePurgeHooks
+    autowire: true
+
+  Drupal\cloudflare_purge\Hook\CloudflarePurgeRequirementsHooks:
+    class: Drupal\cloudflare_purge\Hook\CloudflarePurgeRequirementsHooks
+    autowire: true

@@ -7,6 +7,9 @@
 
 declare(strict_types=1);
 
+use Drupal\Component\Utility\DeprecationHelper;
+use Drupal\Core\Hook\Attribute\LegacyRequirementsHook;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
@@ -60,7 +63,25 @@ function cloudflare_purge_schema(): array {
 
 /**
  * Implements hook_requirements().
+ *
+ * THE ATTRIBUTE BELOW IS NOT COSMETIC AND THE BOT PATCH DID NOT ADD IT.
+ * Without `#[LegacyRequirementsHook]`, Drupal 12 resolves this function's NAME
+ * through the class resolver and the site breaks with.
+ *
+ *   Class "cloudflare_purge_requirements" does not exist.
+ *
+ * — and not while this module installs, but on the NEXT module install on that
+ * site, so the error names this module while somebody is installing something
+ * else. Measured 2026-09-06 on 12.0-dev, immediately after the same fault was
+ * cleared in the sibling module acquia_purge_varnish: the failure simply moved
+ * here.
+ *
+ * This module's rows are runtime-only (the function returns early unless
+ * $phase is 'runtime'), so unlike the sibling there is no install-phase guard
+ * to restore — but the runtime rows would vanish on 11.3+ once this hook stops
+ * being called, which is why CloudflarePurgeRequirementsHooks exists.
  */
+#[LegacyRequirementsHook]
 function cloudflare_purge_requirements(string $phase): array {
   $requirements = [];
 
@@ -134,7 +155,7 @@ function cloudflare_purge_requirements(string $phase): array {
       $requirements['cloudflare_purge'] = [
         'title' => t('Cloudflare Purge'),
         'value' => t('Configured (@method)', ['@method' => $storageMethod]),
-        'severity' => REQUIREMENT_OK,
+        'severity' => DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '11.2.0', fn() => RequirementSeverity::OK, fn() => REQUIREMENT_OK),
       ];
     }
     elseif ($hasZoneId && !$hasAuth) {
@@ -144,7 +165,7 @@ function cloudflare_purge_requirements(string $phase): array {
         'description' => t('Zone ID is configured but authentication credentials are missing. @link', [
           '@link' => $configLink,
         ]),
-        'severity' => REQUIREMENT_WARNING,
+        'severity' => DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '11.2.0', fn() => RequirementSeverity::Warning, fn() => REQUIREMENT_WARNING),
       ];
     }
     else {
@@ -154,7 +175,7 @@ function cloudflare_purge_requirements(string $phase): array {
         'description' => t('Cloudflare credentials have not been configured. @link', [
           '@link' => $configLink,
         ]),
-        'severity' => REQUIREMENT_WARNING,
+        'severity' => DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '11.2.0', fn() => RequirementSeverity::Warning, fn() => REQUIREMENT_WARNING),
       ];
     }
 
@@ -164,7 +185,7 @@ function cloudflare_purge_requirements(string $phase): array {
         'title' => t('Cloudflare Purge - Key Module'),
         'value' => t('Available'),
         'description' => t('The Key module is available for secure credential storage.'),
-        'severity' => REQUIREMENT_INFO,
+        'severity' => DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '11.2.0', fn() => RequirementSeverity::Info, fn() => REQUIREMENT_INFO),
       ];
     }
 
@@ -174,7 +195,7 @@ function cloudflare_purge_requirements(string $phase): array {
         'title' => t('Cloudflare Purge - Auto Purge'),
         'value' => t('Enabled'),
         'description' => t('Automatic cache tag purging is enabled. Free tier has rate limits (5 requests/minute). Consider queue processing for high-traffic sites.'),
-        'severity' => REQUIREMENT_INFO,
+        'severity' => DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '11.2.0', fn() => RequirementSeverity::Info, fn() => REQUIREMENT_INFO),
       ];
     }
   }
@@ -185,7 +206,7 @@ function cloudflare_purge_requirements(string $phase): array {
       'description' => t('An error occurred checking Cloudflare Purge status: @message', [
         '@message' => $e->getMessage(),
       ]),
-      'severity' => REQUIREMENT_ERROR,
+      'severity' => DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '11.2.0', fn() => RequirementSeverity::Error, fn() => REQUIREMENT_ERROR),
     ];
   }
 

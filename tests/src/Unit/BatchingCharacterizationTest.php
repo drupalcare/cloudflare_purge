@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use GuzzleHttp\ClientInterface;
@@ -25,6 +26,7 @@ use PHPUnit\Framework\TestCase;
  * @group cloudflare_purge
  */
 #[CoversClass(CloudflarePurgeApi::class)]
+#[Group('cloudflare_purge')]
 final class BatchingCharacterizationTest extends TestCase {
 
   /**

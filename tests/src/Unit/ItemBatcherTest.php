@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\ItemBatcher;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -14,6 +15,7 @@ use PHPUnit\Framework\TestCase;
  * @group cloudflare_purge
  */
 #[CoversClass(ItemBatcher::class)]
+#[Group('cloudflare_purge')]
 final class ItemBatcherTest extends TestCase {
 
   /**

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Kernel;
 
+use Drupal\cloudflare_purge\PendingTagDrainer;
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
 use Drupal\cloudflare_purge\CloudflarePurgeResult;
@@ -28,9 +30,10 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
  *
  * @group cloudflare_purge
  */
-#[CoversClass(\Drupal\cloudflare_purge\PendingTagDrainer::class)]
+#[CoversClass(PendingTagDrainer::class)]
 #[CoversClass(CloudflarePurgeQueueWorker::class)]
 #[RunTestsInSeparateProcesses]
+#[Group('cloudflare_purge')]
 final class QueueMaxAgeAfterDrainTest extends KernelTestBase {
 
   /**

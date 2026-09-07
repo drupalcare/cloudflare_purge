@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\cloudflare_purge\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\Cache\CacheTagFormatterInterface;
 use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
 use Drupal\cloudflare_purge\CloudflarePurgeResult;
@@ -31,6 +32,7 @@ use PHPUnit\Framework\TestCase;
  * @group cloudflare_purge
  */
 #[CoversClass(CloudflareCacheTagInvalidator::class)]
+#[Group('cloudflare_purge')]
 final class CacheFlushPurgeTest extends TestCase {
 
   /**
