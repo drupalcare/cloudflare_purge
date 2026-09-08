@@ -94,12 +94,12 @@ final class CloudflarePurgeByPrefix extends FormBase {
 
     $form['examples']['content'] = [
       '#markup' => '<p>' . $this->t('For a URL like <code>https://example.com/foo/bar/baz/image.jpg</code>, valid prefixes include:') . '</p>' .
-      '<ul>' .
-      '<li><code>example.com/foo/</code></li>' .
-      '<li><code>example.com/foo/bar/</code></li>' .
-      '<li><code>example.com/foo/bar/baz/</code></li>' .
-      '</ul>' .
-      '<p>' . $this->t('All files under the specified prefix will be purged.') . '</p>',
+        '<ul>' .
+        '<li><code>example.com/foo/</code></li>' .
+        '<li><code>example.com/foo/bar/</code></li>' .
+        '<li><code>example.com/foo/bar/baz/</code></li>' .
+        '</ul>' .
+        '<p>' . $this->t('All files under the specified prefix will be purged.') . '</p>',
     ];
 
     $form['actions'] = [

@@ -298,16 +298,16 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
 
     $form['instructions']['content'] = [
       '#markup' => '<h4>' . $this->t('Adding Cache-Tag Headers') . '</h4>' .
-      '<p>' . $this->t("For automatic tag-based purging to work, your responses must include <code>Cache-Tag</code> headers. This module automatically converts Drupal's <code>X-Drupal-Cache-Tags</code> header to Cloudflare's <code>Cache-Tag</code> format when auto-purge is enabled.") . '</p>' .
-      '<h4>' . $this->t('Example Header') . '</h4>' .
-      '<pre>Cache-Tag: node:123, taxonomy_term:45, user:1</pre>' .
-      '<h4>' . $this->t('Requirements') . '</h4>' .
-      '<ul>' .
-      '<li>' . $this->t('Tag-based purging is available on all Cloudflare plans (since April 2025).') . '</li>' .
-      '<li>' . $this->t('Free tier has rate limits: 5 requests/minute, max 100 tags per request.') . '</li>' .
-      '<li>' . $this->t('Ensure your Cloudflare cache is configured to cache responses.') . '</li>' .
-      '<li>' . $this->t('Configure appropriate Cache Rules (or legacy Page Rules) in Cloudflare if needed.') . '</li>' .
-      '</ul>',
+        '<p>' . $this->t("For automatic tag-based purging to work, your responses must include <code>Cache-Tag</code> headers. This module automatically converts Drupal's <code>X-Drupal-Cache-Tags</code> header to Cloudflare's <code>Cache-Tag</code> format when auto-purge is enabled.") . '</p>' .
+        '<h4>' . $this->t('Example Header') . '</h4>' .
+        '<pre>Cache-Tag: node:123, taxonomy_term:45, user:1</pre>' .
+        '<h4>' . $this->t('Requirements') . '</h4>' .
+        '<ul>' .
+        '<li>' . $this->t('Tag-based purging is available on all Cloudflare plans (since April 2025).') . '</li>' .
+        '<li>' . $this->t('Free tier has rate limits: 5 requests/minute, max 100 tags per request.') . '</li>' .
+        '<li>' . $this->t('Ensure your Cloudflare cache is configured to cache responses.') . '</li>' .
+        '<li>' . $this->t('Configure appropriate Cache Rules (or legacy Page Rules) in Cloudflare if needed.') . '</li>' .
+        '</ul>',
     ];
 
     return parent::buildForm($form, $form_state);

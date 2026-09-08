@@ -87,14 +87,14 @@ final class CloudflarePurgeByUrl extends FormBase {
 
     $form['tips']['content'] = [
       '#markup' => '<ul>' .
-      '<li>' . $this->t('URLs are case-sensitive.') . '</li>' .
-      '<li>' . $this->t('Query strings matter: <code>?v=1</code> and <code>?v=2</code> are cached separately.') . '</li>' .
-      '<li>' . $this->t('For entire directories, use <strong>Purge by Prefix</strong> instead.') . '</li>' .
-      '<li>' . $this->t('For tagged content, use <strong>Purge by Cache Tag</strong>.') . '</li>' .
-      '<li>' . $this->t('Long lists are purged in batches of @max automatically; if the rate limit is reached, the remainder can be submitted again in a moment.', [
-        '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
-      ]) . '</li>' .
-      '</ul>',
+        '<li>' . $this->t('URLs are case-sensitive.') . '</li>' .
+        '<li>' . $this->t('Query strings matter: <code>?v=1</code> and <code>?v=2</code> are cached separately.') . '</li>' .
+        '<li>' . $this->t('For entire directories, use <strong>Purge by Prefix</strong> instead.') . '</li>' .
+        '<li>' . $this->t('For tagged content, use <strong>Purge by Cache Tag</strong>.') . '</li>' .
+        '<li>' . $this->t('Long lists are purged in batches of @max automatically; if the rate limit is reached, the remainder can be submitted again in a moment.', [
+          '@max' => CloudflarePurgeApi::MAX_BATCH_SIZE,
+        ]) . '</li>' .
+        '</ul>',
     ];
 
     $form['actions'] = [

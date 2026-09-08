@@ -95,13 +95,13 @@ final class CloudflarePurgeByTag extends FormBase {
 
     $form['examples']['content'] = [
       '#markup' => '<p>' . $this->t('Drupal cache tags use a colon, e.g. <code>node:1</code>. Common patterns:') . '</p>' .
-      '<ul>' .
-      '<li><code>node:123</code> - ' . $this->t('A specific node') . '</li>' .
-      '<li><code>taxonomy_term:45</code> - ' . $this->t('A taxonomy term') . '</li>' .
-      '<li><code>user:67</code> - ' . $this->t('A user profile') . '</li>' .
-      '<li><code>node_list</code> - ' . $this->t('Any node list (views, listings)') . '</li>' .
-      '<li><code>config:system.site</code> - ' . $this->t('Configuration object') . '</li>' .
-      '</ul>',
+        '<ul>' .
+        '<li><code>node:123</code> - ' . $this->t('A specific node') . '</li>' .
+        '<li><code>taxonomy_term:45</code> - ' . $this->t('A taxonomy term') . '</li>' .
+        '<li><code>user:67</code> - ' . $this->t('A user profile') . '</li>' .
+        '<li><code>node_list</code> - ' . $this->t('Any node list (views, listings)') . '</li>' .
+        '<li><code>config:system.site</code> - ' . $this->t('Configuration object') . '</li>' .
+        '</ul>',
     ];
 
     $form['actions'] = [

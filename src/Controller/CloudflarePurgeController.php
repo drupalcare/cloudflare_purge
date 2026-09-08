@@ -310,11 +310,11 @@ final class CloudflarePurgeController extends ControllerBase {
     $build['notes'] = [
       '#type' => 'markup',
       '#markup' => '<h3>' . $this->t('Other facts') . '</h3>'
-      . '<ul>'
-      . '<li>' . $this->t('All purge methods (URL, tag, prefix, hostname, purge everything) are available on <strong>all plans including Free</strong>, since <strong>April 3, 2025</strong>. (<a href=":url" target="_blank" rel="noopener">Cloudflare changelog</a>)', [':url' => $changelog_url]) . '</li>'
-      . '<li>' . $this->t('The aggregate <code>Cache-Tag</code> response header may not exceed <strong>16 KB</strong> after the header field name (roughly 1,000 tags). This module defaults to a smaller cap to stay below common web server and proxy header limits. (<a href=":url" target="_blank" rel="noopener">Purge by cache tags</a>)', [':url' => $tags_url]) . '</li>'
-      . '<li>' . $this->t('This module batches larger lists automatically on every entry point (UI, Drush, and auto-purge), using a safe ceiling of 100 operations per request.') . '</li>'
-      . '</ul>',
+        . '<ul>'
+        . '<li>' . $this->t('All purge methods (URL, tag, prefix, hostname, purge everything) are available on <strong>all plans including Free</strong>, since <strong>April 3, 2025</strong>. (<a href=":url" target="_blank" rel="noopener">Cloudflare changelog</a>)', [':url' => $changelog_url]) . '</li>'
+        . '<li>' . $this->t('The aggregate <code>Cache-Tag</code> response header may not exceed <strong>16 KB</strong> after the header field name (roughly 1,000 tags). This module defaults to a smaller cap to stay below common web server and proxy header limits. (<a href=":url" target="_blank" rel="noopener">Purge by cache tags</a>)', [':url' => $tags_url]) . '</li>'
+        . '<li>' . $this->t('This module batches larger lists automatically on every entry point (UI, Drush, and auto-purge), using a safe ceiling of 100 operations per request.') . '</li>'
+        . '</ul>',
     ];
 
     $build['footer'] = [
