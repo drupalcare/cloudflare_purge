@@ -8,6 +8,7 @@ use Drupal\cloudflare_purge\CloudflarePurgeLinks;
 use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -50,21 +51,21 @@ final class CloudflarePurgeEverything extends ConfirmFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getQuestion() {
+  public function getQuestion(): TranslatableMarkup {
     return $this->t('Are you sure you want to purge the entire Cloudflare cache?');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getDescription() {
+  public function getDescription(): TranslatableMarkup {
     return $this->t('<strong>Warning:</strong> This will clear ALL cached content from Cloudflare for your entire zone. This action cannot be undone and may temporarily increase load on your origin server as the cache rebuilds. Use this only when necessary, such as after major site updates or configuration changes.');
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getConfirmText() {
+  public function getConfirmText(): TranslatableMarkup {
     return $this->t('Purge Everything');
   }
 
