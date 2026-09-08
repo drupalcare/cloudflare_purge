@@ -10,6 +10,7 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Cloudflare API service for comprehensive cache purging operations.
@@ -235,21 +236,19 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
       $errorMessage = $e->getMessage();
       $data = NULL;
 
-      if ($e->hasResponse()) {
-        $response = $e->getResponse();
-        if ($response !== NULL) {
-          $statusCode = $response->getStatusCode();
-          $body = (string) $response->getBody();
-          $data = $this->safeJsonDecode($body);
-          $errorMessage = $this->extractErrorMessage($data) ?: $errorMessage;
+      $response = $this->responseFromException($e);
+      if ($response !== NULL) {
+        $statusCode = $response->getStatusCode();
+        $body = (string) $response->getBody();
+        $data = $this->safeJsonDecode($body);
+        $errorMessage = $this->extractErrorMessage($data) ?: $errorMessage;
 
-          // Truncate the raw body: Cloudflare error responses can echo back the
-          // offending input (e.g. a URL/prefix) and may be large.
-          $this->logger->error('Cloudflare API error. Status: @status, Body: @body', [
-            '@status' => $statusCode,
-            '@body' => mb_strimwidth($body, 0, 1024, '…'),
-          ]);
-        }
+        // Truncate the raw body: Cloudflare error responses can echo back the
+        // offending input (e.g. a URL/prefix) and may be large.
+        $this->logger->error('Cloudflare API error. Status: @status, Body: @body', [
+          '@status' => $statusCode,
+          '@body' => mb_strimwidth($body, 0, 1024, '…'),
+        ]);
       }
 
       return new CloudflarePurgeResult(
@@ -268,6 +267,49 @@ final class CloudflarePurgeApi implements CloudflarePurgeApiInterface {
         message: 'HTTP request failed: ' . $e->getMessage(),
       );
     }
+  }
+
+  /**
+   * Extracts the response from a Guzzle request exception, across Guzzle 7 & 8.
+   *
+   * The two shipped Guzzle majors disagree about where a response lives on an
+   * exception, and this module supports both:
+   *
+   * - Guzzle 7 (Drupal 10 and 11) declares hasResponse() and getResponse() on
+   *   RequestException itself; getResponse() is nullable there.
+   * - Guzzle 8 (Drupal 12) removed BOTH from RequestException. A response is
+   *   carried only by ResponseException and its subclasses
+   *   (BadResponseException, ClientException, ServerException,
+   *   TooManyRedirectsException, ResponseTransferException), which still
+   *   extend RequestException and so still land in this catch. Calling
+   *   hasResponse() on the parent there is a fatal Error, not a caught
+   *   exception.
+   *
+   * Feature detection rather than a version check keeps this correct whichever
+   * Guzzle the host site actually resolved, and needs no reference to a class
+   * that does not exist on the other major.
+   *
+   * @param \GuzzleHttp\Exception\RequestException $e
+   *   The caught request exception.
+   *
+   * @return \Psr\Http\Message\ResponseInterface|null
+   *   The response the exception carries, or NULL when it carries none.
+   */
+  private function responseFromException(RequestException $e): ?ResponseInterface {
+    // Guzzle 7 only: the exception itself says whether a response came back,
+    // and getResponse() is nullable, so a NULL here is an answer, not a gap.
+    if (method_exists($e, 'hasResponse') && !$e->hasResponse()) {
+      return NULL;
+    }
+
+    // Guzzle 8: getResponse() exists only on the response-carrying subclasses,
+    // so its absence is itself the "no response" answer.
+    if (!method_exists($e, 'getResponse')) {
+      return NULL;
+    }
+
+    $response = $e->getResponse();
+    return $response instanceof ResponseInterface ? $response : NULL;
   }
 
   /**

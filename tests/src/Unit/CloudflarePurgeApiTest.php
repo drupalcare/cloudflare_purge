@@ -8,6 +8,8 @@ use PHPUnit\Framework\Attributes\Group;
 use Drupal\cloudflare_purge\CloudflarePurgeApi;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -213,6 +215,104 @@ class CloudflarePurgeApiTest extends TestCase {
 
     $this->assertFalse($result->isSuccess());
     $this->assertStringContainsString('No valid URLs', $result->getMessage());
+  }
+
+  /**
+   * A Cloudflare API error must be reported as a result, never fatal.
+   *
+   * Regression test for the Guzzle 8 / Drupal 12 fatal: Guzzle 7 declares
+   * hasResponse() and getResponse() on RequestException, Guzzle 8 declares
+   * neither — a response lives only on ResponseException and its subclasses,
+   * which still extend RequestException and so still reach the same catch.
+   * Before the fix, every Cloudflare API *failure* on Drupal 12 died with
+   * "Call to undefined method GuzzleHttp\Exception\ClientException::
+   * hasResponse()" instead of returning a failed CloudflarePurgeResult. The
+   * whole 141-test suite passed throughout, because nothing here had ever
+   * thrown a Guzzle exception at this client.
+   *
+   * RequestException::create() is the factory Guzzle itself uses, and exists
+   * in both majors, so this test asserts on what Guzzle really throws rather
+   * than on a hand-built stand-in.
+   */
+  public function testApiErrorWithResponseIsReportedNotFatal(): void {
+    $httpClient = $this->createStub(ClientInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
+
+    $body = (string) json_encode([
+      'success' => FALSE,
+      'errors' => [['code' => 10000, 'message' => 'Authentication error']],
+    ]);
+    // A 403 makes Guzzle's factory return ClientException on both majors.
+    $exception = RequestException::create(
+      new Request('POST', 'https://api.cloudflare.com/client/v4/zones/' . self::TEST_ZONE_ID . '/purge_cache'),
+      new Response(403, [], $body)
+    );
+    $httpClient->method('request')->willThrowException($exception);
+
+    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $result = $api->purgeEverything(TRUE, self::TEST_ZONE_ID, 'test-token', NULL, NULL);
+
+    $this->assertFalse($result->isSuccess());
+    $this->assertSame(403, $result->getStatusCode());
+    $this->assertStringContainsString('Authentication error', $result->getMessage());
+    $this->assertStringContainsString('code: 10000', $result->getMessage());
+    $this->assertFalse($result->getData()['success'] ?? NULL);
+  }
+
+  /**
+   * A request exception carrying no response must not be treated as one.
+   *
+   * Guzzle 8 throws a bare RequestException ("Error completing request") when
+   * a transfer fails before any response headers arrive. There is no response
+   * to read, and the feature detection must fall through to NULL rather than
+   * calling a method the class does not declare.
+   */
+  public function testRequestExceptionWithoutResponseIsHandled(): void {
+    $httpClient = $this->createStub(ClientInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
+
+    $exception = RequestException::create(
+      new Request('POST', 'https://api.cloudflare.com/client/v4/zones/' . self::TEST_ZONE_ID . '/purge_cache')
+    );
+    $httpClient->method('request')->willThrowException($exception);
+
+    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $result = $api->purgeEverything(TRUE, self::TEST_ZONE_ID, 'test-token', NULL, NULL);
+
+    $this->assertFalse($result->isSuccess());
+    $this->assertSame(0, $result->getStatusCode());
+    $this->assertNull($result->getData());
+    $this->assertStringContainsString('Error completing request', $result->getMessage());
+  }
+
+  /**
+   * A response outside 4xx/5xx is where the two Guzzle majors diverge most.
+   *
+   * Guzzle 7 returns a plain RequestException that carries the response and
+   * answers TRUE to hasResponse(); Guzzle 8 returns a ResponseException, whose
+   * parent has no hasResponse() at all. Both must yield the same result here,
+   * which is the whole point of detecting the feature rather than the version.
+   */
+  public function testNonClientOrServerErrorResponseIsStillRead(): void {
+    $httpClient = $this->createStub(ClientInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
+
+    $body = (string) json_encode([
+      'success' => FALSE,
+      'errors' => [['code' => 1234, 'message' => 'Unexpected redirect']],
+    ]);
+    $exception = RequestException::create(
+      new Request('POST', 'https://api.cloudflare.com/client/v4/zones/' . self::TEST_ZONE_ID . '/purge_cache'),
+      new Response(302, [], $body)
+    );
+    $httpClient->method('request')->willThrowException($exception);
+
+    $api = new CloudflarePurgeApi($httpClient, $logger);
+    $result = $api->purgeEverything(TRUE, self::TEST_ZONE_ID, 'test-token', NULL, NULL);
+
+    $this->assertFalse($result->isSuccess());
+    $this->assertSame(302, $result->getStatusCode());
+    $this->assertStringContainsString('Unexpected redirect', $result->getMessage());
   }
 
 }
