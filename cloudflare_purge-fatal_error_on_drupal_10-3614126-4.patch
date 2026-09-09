@@ -1,0 +1,465 @@
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index bfb61d7..cbcc710 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -16,3 +16,31 @@ include:
+       - '/includes/include.drupalci.main.yml'
+       - '/includes/include.drupalci.variables.yml'
+       - '/includes/include.drupalci.workflows.yml'
++
++################
++# Test every core version this module claims to support.
++#
++# info.yml declares `core_version_requirement: ^10 || ^11`, but the DA template
++# only tests the current core version by default (OPT_IN_TEST_CURRENT), and all
++# the other variants default to '0'. That gap is how 3.1.2 shipped a class that
++# was fatal to autoload on Drupal 10 with a fully green pipeline (#3614126).
++#
++# `phpunit (previous major)` and `phpunit (previous minor)` carry no
++# allow_failure in the template, so a break on Drupal 10 or on the previous
++# minor now turns the pipeline red instead of going unnoticed until release.
++#
++# Next minor/major are deliberately left off here: those jobs are
++# allow_failure: true, so they would not gate anything, and this branch does
++# not claim Drupal 12 support. Turn on OPT_IN_TEST_NEXT_MAJOR with the Drupal
++# 12 work, when the ^12 constraint actually lands.
++################
++# Two switches are needed per variant, not one. OPT_IN_TEST_* decides whether
++# the job is created at all; _AUTORUN_* decides whether it runs by itself or
++# falls through to *make-job-manual. Both template defaults ('0' and 'none')
++# have to be overridden, or the job appears in the pipeline and is silently
++# skipped behind a manual composer prerequisite -- green pipeline, no coverage.
++variables:
++  OPT_IN_TEST_PREVIOUS_MAJOR: '1'
++  _AUTORUN_PREVIOUS_MAJOR: 'all'
++  OPT_IN_TEST_PREVIOUS_MINOR: '1'
++  _AUTORUN_PREVIOUS_MINOR: 'all'
+diff --git a/cloudflare_purge.module b/cloudflare_purge.module
+index 88809ed..90e6524 100644
+--- a/cloudflare_purge.module
++++ b/cloudflare_purge.module
+@@ -89,6 +89,38 @@ function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_ma
+   }
+ }
+ 
++/**
++ * Implements hook_cache_flush().
++ *
++ * A full Drupal cache flush invalidates every cache tag at once, so the only
++ * faithful Cloudflare action is to purge the entire zone. Core invokes this
++ * hook from drupal_flush_all_caches() immediately before the cache bins are
++ * cleared, on Drupal 10, 11 and 12 alike.
++ *
++ * This is deliberately a procedural hook rather than
++ * \Drupal\Core\Cache\CacheTagsPurgeInterface, which core only added in Drupal
++ * 11.2: implementing that interface made the invalidator fatal to autoload on
++ * Drupal 10 (issue #3614126). hook_cache_flush() runs at the same point in the
++ * flush on every supported core version, so one code path covers them all.
++ *
++ * The purge itself is opt-in (purge_everything_on_flush) and off by default;
++ * the invalidator applies that check along with the installer and credential
++ * guards.
++ */
++function cloudflare_purge_cache_flush(): void {
++  // This runs inside the critical cache-rebuild path. An unavailable service
++  // or a Cloudflare failure must never interrupt the flush, so everything is
++  // swallowed here as well as inside the invalidator.
++  try {
++    \Drupal::service('cloudflare_purge.cache_tag_invalidator')->purgeEverythingOnFlush();
++  }
++  catch (\Exception $e) {
++    \Drupal::logger('cloudflare_purge')->error('Error during cache flush purge: @message', [
++      '@message' => $e->getMessage(),
++    ]);
++  }
++}
++
+ /**
+  * Implements hook_cron().
+  */
+diff --git a/phpunit.xml b/phpunit.xml
+index 17a7815..0e5d02c 100644
+--- a/phpunit.xml
++++ b/phpunit.xml
+@@ -13,9 +13,12 @@
+       <directory>./tests/src/Kernel</directory>
+     </testsuite>
+   </testsuites>
+-  <source>
+-    <include>
+-      <directory suffix=".php">./src</directory>
+-    </include>
+-  </source>
++  <!--
++    No <source> element: it is PHPUnit 10+ only, and Drupal 10 ships PHPUnit 9,
++    which rejects it with "Element 'source': This element is not expected" and
++    then warns "Test results may not be as expected" on every run. PHPUnit 9's
++    equivalent (<coverage><include>) is in turn deprecated in 10+, so no single
++    element spans the versions this module supports. Nothing here generates
++    coverage; pass the coverage-filter option on the command line if you need it.
++  -->
+ </phpunit>
+diff --git a/src/Cache/CloudflareCacheTagInvalidator.php b/src/Cache/CloudflareCacheTagInvalidator.php
+index 11f2b7b..3d25918 100644
+--- a/src/Cache/CloudflareCacheTagInvalidator.php
++++ b/src/Cache/CloudflareCacheTagInvalidator.php
+@@ -8,7 +8,6 @@ use Drupal\cloudflare_purge\CloudflarePurgeSettings;
+ use Drupal\cloudflare_purge\PendingTagsStoreInterface;
+ use Drupal\cloudflare_purge\PurgeInterface;
+ use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
+-use Drupal\Core\Cache\CacheTagsPurgeInterface;
+ use Drupal\Core\Config\ConfigFactoryInterface;
+ use Drupal\Core\Installer\InstallerKernel;
+ use Drupal\Core\Logger\LoggerChannelInterface;
+@@ -22,7 +21,7 @@ use Drupal\Core\Logger\LoggerChannelInterface;
+  *
+  * @package Drupal\cloudflare_purge\Cache
+  */
+-final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterface, CacheTagsPurgeInterface {
++final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterface {
+ 
+   /**
+    * Queue name for deferred purge operations.
+@@ -105,17 +104,25 @@ final class CloudflareCacheTagInvalidator implements CacheTagsInvalidatorInterfa
+   }
+ 
+   /**
+-   * {@inheritdoc}
++   * Purges the entire Cloudflare zone in response to a full Drupal cache flush.
++   *
++   * Invoked from cloudflare_purge_cache_flush() (hook_cache_flush()), which
++   * drupal_flush_all_caches() calls on every full flush — `drush cr`, the
++   * "Clear all caches" button, rebuild.php, and every module install — just
++   * before the cache bins are cleared. A full flush invalidates every Drupal
++   * cache tag, so the only faithful Cloudflare action is to purge the whole
++   * zone. Because a full flush is routine, this is opt-in and off by default so
++   * an ordinary `drush cr` never purges the CDN unexpectedly.
+    *
+-   * Core calls this from the cache_tags.invalidator service during
+-   * drupal_flush_all_caches() (e.g. `drush cr`, the "Clear all caches" button,
+-   * or rebuild_cache_access), immediately before the cache bins are cleared. A
+-   * full flush invalidates every Drupal cache tag, so the only faithful
+-   * Cloudflare action is to purge the entire zone. Because a full flush happens
+-   * often (every rebuild, deploy, and module install), this is opt-in and off
+-   * by default so routine `drush cr` never purges the CDN unexpectedly.
++   * Deliberately NOT wired through \Drupal\Core\Cache\CacheTagsPurgeInterface:
++   * that interface only exists in Drupal 11.2 and later, and implementing it
++   * here made this class fatal to autoload on Drupal 10 (issue #3614126).
++   * hook_cache_flush() is invoked from the same place in
++   * drupal_flush_all_caches() on Drupal 10, 11 and 12 alike, so one code path
++   * serves every supported core version. Do not re-add the interface while the
++   * module still declares Drupal 10 support.
+    */
+-  public function purge(): void {
++  public function purgeEverythingOnFlush(): void {
+     $config = $this->configFactory->get(CloudflarePurgeSettings::NAME);
+ 
+     // Opt-in only.
+diff --git a/tests/src/Kernel/CacheFlushPurgeWiringTest.php b/tests/src/Kernel/CacheFlushPurgeWiringTest.php
+new file mode 100644
+index 0000000..925f5da
+--- /dev/null
++++ b/tests/src/Kernel/CacheFlushPurgeWiringTest.php
+@@ -0,0 +1,123 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\Tests\cloudflare_purge\Kernel;
++
++use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
++use Drupal\cloudflare_purge\CloudflarePurgeSettings;
++use Drupal\Core\DependencyInjection\ContainerBuilder;
++use Drupal\KernelTests\KernelTestBase;
++use PHPUnit\Framework\Attributes\Group;
++use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
++
++/**
++ * Tests that a full cache flush actually reaches the zone purge.
++ *
++ * This is the regression guard for issue #3614126. The unit test for
++ * purgeEverythingOnFlush() calls the method directly, so it stays green
++ * whether or not anything is wired to call it — which is how 3.1.2 shipped a
++ * flush purge that was fatal on Drupal 10, and how simply dropping the
++ * interface would have silently disabled the feature on Drupal 11.2+.
++ *
++ * These tests exercise the real container and the real hook dispatch instead,
++ * so they fail if the flush is ever disconnected from the purge again.
++ */
++#[Group('cloudflare_purge')]
++#[RunTestsInSeparateProcesses]
++class CacheFlushPurgeWiringTest extends KernelTestBase {
++
++  /**
++   * {@inheritdoc}
++   */
++  protected static $modules = ['cloudflare_purge'];
++
++  /**
++   * {@inheritdoc}
++   *
++   * Swaps the real purge service for a recording double before the container
++   * is compiled, so the invalidator is built against it however early the
++   * cache_tags_invalidator collector instantiates it.
++   */
++  public function register(ContainerBuilder $container): void {
++    parent::register($container);
++    $container->getDefinition('cloudflare_purge.purge')
++      ->setClass(RecordingPurge::class)
++      ->setArguments([]);
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  protected function setUp(): void {
++    parent::setUp();
++    $this->installConfig(['cloudflare_purge']);
++  }
++
++  /**
++   * Sets the opt-in flush setting, then invokes hook_cache_flush().
++   *
++   * @param bool $enabled
++   *   Value for purge_everything_on_flush.
++   *
++   * @return int
++   *   The number of zone purges the flush triggered.
++   */
++  private function flushWithSetting(bool $enabled): int {
++    $this->config(CloudflarePurgeSettings::NAME)
++      ->set('purge_everything_on_flush', $enabled)
++      ->save();
++
++    RecordingPurge::$purgeEverythingCalls = 0;
++    // The same dispatch drupal_flush_all_caches() performs, without the
++    // container rebuild that would discard the recording double.
++    $this->container->get('module_handler')->invokeAll('cache_flush');
++
++    return RecordingPurge::$purgeEverythingCalls;
++  }
++
++  /**
++   * The module registers an implementation of hook_cache_flush().
++   *
++   * Without it, purgeEverythingOnFlush() is dead code and the opt-in setting
++   * silently does nothing.
++   */
++  public function testCacheFlushHookIsRegistered(): void {
++    $this->assertTrue(
++      $this->container->get('module_handler')->hasImplementations('cache_flush', ['cloudflare_purge']),
++      'cloudflare_purge implements hook_cache_flush().',
++    );
++  }
++
++  /**
++   * The invalidator does not implement a core-version-specific interface.
++   *
++   * CacheTagsPurgeInterface only exists in Drupal 11.2 and later; implementing
++   * it makes the class fatal to autoload on Drupal 10 while the module still
++   * declares ^10 support (issue #3614126).
++   */
++  public function testInvalidatorDoesNotImplementVersionSpecificInterface(): void {
++    $interfaces = class_implements(CloudflareCacheTagInvalidator::class);
++    $this->assertIsArray($interfaces);
++    $this->assertNotContains(
++      'Drupal\Core\Cache\CacheTagsPurgeInterface',
++      $interfaces,
++      'The invalidator must not implement the Drupal 11.2+ only CacheTagsPurgeInterface.',
++    );
++  }
++
++  /**
++   * With the opt-in setting on, a cache flush purges the whole zone.
++   */
++  public function testFlushReachesZonePurgeWhenEnabled(): void {
++    $this->assertSame(1, $this->flushWithSetting(TRUE), 'A full cache flush purged the Cloudflare zone once.');
++  }
++
++  /**
++   * With the opt-in setting off (the default), a cache flush purges nothing.
++   */
++  public function testFlushDoesNotPurgeWhenDisabled(): void {
++    $this->assertSame(0, $this->flushWithSetting(FALSE), 'A full cache flush did not purge the Cloudflare zone.');
++  }
++
++}
+diff --git a/tests/src/Kernel/RecordingPurge.php b/tests/src/Kernel/RecordingPurge.php
+new file mode 100644
+index 0000000..81f5fba
+--- /dev/null
++++ b/tests/src/Kernel/RecordingPurge.php
+@@ -0,0 +1,66 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\Tests\cloudflare_purge\Kernel;
++
++use Drupal\cloudflare_purge\CloudflarePurgeResult;
++use Drupal\cloudflare_purge\PurgeInterface;
++
++/**
++ * A purge service double that records whether the zone purge was reached.
++ *
++ * Used by CacheFlushPurgeWiringTest in place of cloudflare_purge.purge so a
++ * cache flush can be observed end to end without contacting Cloudflare.
++ */
++final class RecordingPurge implements PurgeInterface {
++
++  /**
++   * Number of purgeEverything() calls since the counter was last reset.
++   */
++  public static int $purgeEverythingCalls = 0;
++
++  /**
++   * {@inheritdoc}
++   */
++  public function purgeEverything(bool $showMessage = TRUE): CloudflarePurgeResult {
++    self::$purgeEverythingCalls++;
++    return new CloudflarePurgeResult(TRUE, 200, 'ok');
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function purgeByUrls(array $urls, bool $showMessage = TRUE): CloudflarePurgeResult {
++    return new CloudflarePurgeResult(TRUE, 200, 'ok');
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function purgeByTags(array $tags, bool $showMessage = TRUE): CloudflarePurgeResult {
++    return new CloudflarePurgeResult(TRUE, 200, 'ok');
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function purgeByPrefixes(array $prefixes, bool $showMessage = TRUE): CloudflarePurgeResult {
++    return new CloudflarePurgeResult(TRUE, 200, 'ok');
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function purgeByHostnames(array $hostnames, bool $showMessage = TRUE): CloudflarePurgeResult {
++    return new CloudflarePurgeResult(TRUE, 200, 'ok');
++  }
++
++  /**
++   * {@inheritdoc}
++   */
++  public function hasCredentials(): bool {
++    return TRUE;
++  }
++
++}
+diff --git a/tests/src/Unit/CacheFlushPurgeTest.php b/tests/src/Unit/CacheFlushPurgeTest.php
+index 7bcfef2..c3e7e9f 100644
+--- a/tests/src/Unit/CacheFlushPurgeTest.php
++++ b/tests/src/Unit/CacheFlushPurgeTest.php
+@@ -17,11 +17,16 @@ use PHPUnit\Framework\MockObject\MockObject;
+ use PHPUnit\Framework\TestCase;
+ 
+ /**
+- * Tests the full-cache-flush purge (CacheTagsPurgeInterface::purge()).
++ * Tests the full-cache-flush purge decision logic.
+  *
+- * Core calls purge() on the cache_tags.invalidator during
+- * drupal_flush_all_caches() (e.g. `drush cr`). The invalidator maps that to a
+- * full Cloudflare zone purge, but only when opted in and credentialed.
++ * The hook implementation cloudflare_purge_cache_flush() calls
++ * purgeEverythingOnFlush() during drupal_flush_all_caches() (e.g. `drush cr`).
++ * The invalidator maps that to a full Cloudflare zone purge, but only when
++ * opted in and credentialed.
++ *
++ * These tests call the method directly, so they cover the decision logic only.
++ * That the flush actually reaches this method is covered by
++ * \Drupal\Tests\cloudflare_purge\Kernel\CacheFlushPurgeWiringTest.
+  *
+  * @group cloudflare_purge
+  */
+@@ -62,7 +67,7 @@ final class CacheFlushPurgeTest extends TestCase {
+   }
+ 
+   /**
+-   * When enabled and credentialed, purge() purges the entire zone once.
++   * When enabled and credentialed, the flush purges the entire zone once.
+    */
+   public function testFlushPurgesEntireZoneWhenEnabled(): void {
+     $purgeService = $this->createMock(PurgeInterface::class);
+@@ -71,41 +76,42 @@ final class CacheFlushPurgeTest extends TestCase {
+       ->with(FALSE)
+       ->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
+ 
+-    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purge();
++    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purgeEverythingOnFlush();
+   }
+ 
+   /**
+-   * When the opt-in setting is off, purge() does nothing.
++   * When the opt-in setting is off, the flush does nothing.
+    */
+   public function testFlushDoesNothingWhenDisabled(): void {
+     $purgeService = $this->createMock(PurgeInterface::class);
+     $purgeService->expects($this->never())->method('purgeEverything');
+ 
+-    $this->buildInvalidator(FALSE, $purgeService, TRUE)->purge();
++    $this->buildInvalidator(FALSE, $purgeService, TRUE)->purgeEverythingOnFlush();
+   }
+ 
+   /**
+-   * Without credentials, purge() does not attempt a purge even when enabled.
++   * Without credentials, the flush does not purge even when enabled.
+    */
+   public function testFlushDoesNothingWithoutCredentials(): void {
+     $purgeService = $this->createMock(PurgeInterface::class);
+     $purgeService->expects($this->never())->method('purgeEverything');
+ 
+-    $this->buildInvalidator(TRUE, $purgeService, FALSE)->purge();
++    $this->buildInvalidator(TRUE, $purgeService, FALSE)->purgeEverythingOnFlush();
+   }
+ 
+   /**
+    * A Cloudflare failure during flush is swallowed, never rethrown.
+    *
+-   * Because purge() runs inside the critical cache-rebuild path, an API
+-   * exception must not escape and interrupt drupal_flush_all_caches().
++   * Because purgeEverythingOnFlush() runs inside the critical cache-rebuild
++   * path, an API exception must not escape and interrupt
++   * drupal_flush_all_caches().
+    */
+   public function testFlushSwallowsPurgeExceptions(): void {
+     $purgeService = $this->createMock(PurgeInterface::class);
+     $purgeService->method('purgeEverything')
+       ->willThrowException(new \RuntimeException('Cloudflare unreachable'));
+ 
+-    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purge();
++    $this->buildInvalidator(TRUE, $purgeService, TRUE)->purgeEverythingOnFlush();
+     $this->addToAssertionCount(1);
+   }
+ 
+diff --git a/tests/src/Unit/PrefixNormalizerTest.php b/tests/src/Unit/PrefixNormalizerTest.php
+index a54d7d2..3d50ca4 100644
+--- a/tests/src/Unit/PrefixNormalizerTest.php
++++ b/tests/src/Unit/PrefixNormalizerTest.php
+@@ -19,6 +19,8 @@ class PrefixNormalizerTest extends UnitTestCase {
+ 
+   /**
+    * Tests that schemes are stripped from prefixes.
++   *
++   * @dataProvider normalizeProvider
+    */
+   #[DataProvider('normalizeProvider')]
+   public function testNormalize(string $input, string $expected): void {
+@@ -57,6 +59,8 @@ class PrefixNormalizerTest extends UnitTestCase {
+ 
+   /**
+    * Tests prefix validity detection.
++   *
++   * @dataProvider isValidProvider
+    */
+   #[DataProvider('isValidProvider')]
+   public function testIsValid(string $input, bool $expected): void {

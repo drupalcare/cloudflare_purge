@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Drupal\cloudflare_purge\Plugin\QueueWorker;
 
-use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
-use Drupal\cloudflare_purge\CloudflarePurgeSettings;
-use Drupal\cloudflare_purge\PurgeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Queue\Attribute\QueueWorker;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueWorkerBase;
 use Drupal\Core\Queue\RequeueException;
 use Drupal\Core\Queue\SuspendQueueException;
 use Drupal\Core\State\StateInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator;
+use Drupal\cloudflare_purge\CloudflarePurgeSettings;
+use Drupal\cloudflare_purge\PurgeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -33,6 +35,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @package Drupal\cloudflare_purge\Plugin\QueueWorker
  */
+#[QueueWorker(
+  id: 'cloudflare_purge_tags',
+  title: new TranslatableMarkup('Cloudflare Cache Tag Purge'),
+  cron: ['time' => 30],
+)]
 final class CloudflarePurgeQueueWorker extends QueueWorkerBase implements ContainerFactoryPluginInterface {
 
   /**
