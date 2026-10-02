@@ -26,7 +26,7 @@
         "drupal/core": "^10 || ^11 || ^12"
     },
     "require-dev": {
-        "drupal/core-dev": "^10 || ^11",
+        "drupal/core-dev": "^10 || ^11 || ^12",
         "drupal/key": "^1.22"
     },
     "minimum-stability": "dev",
