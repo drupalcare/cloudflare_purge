@@ -79,9 +79,9 @@ final class CloudflarePurgeByHostname extends FormBase {
     $form['warning'] = [
       '#type' => 'markup',
       '#markup' => '<div class="messages messages--warning">' .
-        '<strong>' . $this->t('Warning:') . '</strong> ' .
-        $this->t('Purging by hostname will invalidate ALL cached content for that hostname. This can significantly increase load on your origin server. Available on all Cloudflare plans (Free tier: 5 requests/minute).') .
-        '</div>',
+      '<strong>' . $this->t('Warning:') . '</strong> ' .
+      $this->t('Purging by hostname will invalidate ALL cached content for that hostname. This can significantly increase load on your origin server. Available on all Cloudflare plans (Free tier: 5 requests/minute).') .
+      '</div>',
     ];
 
     $form['hostnames'] = [
@@ -101,11 +101,11 @@ final class CloudflarePurgeByHostname extends FormBase {
 
     $form['examples']['content'] = [
       '#markup' => '<ul>' .
-        '<li>' . $this->t('<strong>Subdomain updates:</strong> Purge <code>blog.example.com</code> when you update your blog section.') . '</li>' .
-        '<li>' . $this->t('<strong>CDN invalidation:</strong> Purge <code>cdn.example.com</code> when static assets change.') . '</li>' .
-        '<li>' . $this->t('<strong>Regional sites:</strong> Purge <code>us.example.com</code> for region-specific updates.') . '</li>' .
-        '<li>' . $this->t('<strong>Staging cleanup:</strong> Purge <code>staging.example.com</code> before testing.') . '</li>' .
-        '</ul>',
+      '<li>' . $this->t('<strong>Subdomain updates:</strong> Purge <code>blog.example.com</code> when you update your blog section.') . '</li>' .
+      '<li>' . $this->t('<strong>CDN invalidation:</strong> Purge <code>cdn.example.com</code> when static assets change.') . '</li>' .
+      '<li>' . $this->t('<strong>Regional sites:</strong> Purge <code>us.example.com</code> for region-specific updates.') . '</li>' .
+      '<li>' . $this->t('<strong>Staging cleanup:</strong> Purge <code>staging.example.com</code> before testing.') . '</li>' .
+      '</ul>',
     ];
 
     $form['actions'] = [

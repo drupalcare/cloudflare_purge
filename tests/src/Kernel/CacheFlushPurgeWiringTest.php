@@ -22,6 +22,8 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
  *
  * These tests exercise the real container and the real hook dispatch instead,
  * so they fail if the flush is ever disconnected from the purge again.
+ *
+ * @group cloudflare_purge
  */
 #[Group('cloudflare_purge')]
 #[RunTestsInSeparateProcesses]

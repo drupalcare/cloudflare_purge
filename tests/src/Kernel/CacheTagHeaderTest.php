@@ -20,6 +20,8 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
  * Exercises the module's real container and installed configuration so the
  * single-source-of-truth refactors are covered end to end (config/install,
  * schema, DI wiring, the formatter and the credential resolver).
+ *
+ * @group cloudflare_purge
  */
 #[Group('cloudflare_purge')]
 #[RunTestsInSeparateProcesses]

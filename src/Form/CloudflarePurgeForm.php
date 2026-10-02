@@ -195,9 +195,9 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
     $form['header']['content'] = [
       '#markup' => '<div class="cloudflare-purge-header__content">' .
-        '<h2>' . $this->t('Cloudflare Purge Configuration') . '</h2>' .
-        '<p>' . $this->t('Manage cache purging for your Cloudflare zones') . '</p>' .
-        '</div>',
+      '<h2>' . $this->t('Cloudflare Purge Configuration') . '</h2>' .
+      '<p>' . $this->t('Manage cache purging for your Cloudflare zones') . '</p>' .
+      '</div>',
     ];
 
     // ========== INFO NOTE ==========
@@ -216,7 +216,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
     $form['info_note']['text'] = [
       '#markup' => '<div class="cloudflare-purge-info-note__text">' .
-        $this->t(
+      $this->t(
           '<strong>Note:</strong> When storing credentials in <code>settings.php</code>, you must provide a <strong>complete set</strong> of credentials (zone_id + bearer_token OR zone_id + email + authorization). When complete credentials are found in settings.php, this form will be disabled.'
       ) . '</div>',
     ];
@@ -269,9 +269,9 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     $form['layout']['left']['plain_text_warning'] = [
       '#type' => 'markup',
       '#markup' => '<div class="messages messages--warning">' .
-        '<strong>' . $this->t('Security Warning:') . '</strong> ' .
-        $this->t('Plain text storage saves credentials in the database. For production environments, use settings.php override or the Key module for secure storage.') .
-        '</div>',
+      '<strong>' . $this->t('Security Warning:') . '</strong> ' .
+      $this->t('Plain text storage saves credentials in the database. For production environments, use settings.php override or the Key module for secure storage.') .
+      '</div>',
       '#states' => [
         'visible' => [
           ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
@@ -282,9 +282,9 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     if (!$this->moduleHandler->moduleExists('key')) {
       $form['layout']['left']['key_module_notice'] = [
         '#markup' => '<div class="cloudflare-purge-notice">' .
-          $this->t('Install the <a href="@url" target="_blank">Key module</a> to enable secure credential storage.', [
-            '@url' => 'https://www.drupal.org/project/key',
-          ]) . '</div>',
+        $this->t('Install the <a href="@url" target="_blank">Key module</a> to enable secure credential storage.', [
+          '@url' => 'https://www.drupal.org/project/key',
+        ]) . '</div>',
       ];
     }
 
@@ -568,12 +568,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     // Wrap content in a div to prevent flexbox layout issues (e.g., Gin theme).
     $form['override_message']['content'] = [
       '#markup' => '<div class="cloudflare-purge-override-message">' .
-        '<p><strong>' . $this->t('Configuration Override Detected') . '</strong></p>' .
-        '<p>' . $this->t('Your Cloudflare credentials are currently managed via <code>settings.php</code>. This is the recommended approach for production environments.') . '</p>' .
-        '<p><strong>' . $this->t('Detected configuration:') . '</strong> ' . $auth_type . '</p>' .
-        '<p>' . $this->t('To modify credentials, update the <code>$settings["cloudflare_purge_credentials"]</code> array in your <code>settings.php</code> file.') . '</p>' .
-        '<p>' . $this->t('All database-stored credentials have been disabled and will be cleaned on form submission for security.') . '</p>' .
-        '</div>',
+      '<p><strong>' . $this->t('Configuration Override Detected') . '</strong></p>' .
+      '<p>' . $this->t('Your Cloudflare credentials are currently managed via <code>settings.php</code>. This is the recommended approach for production environments.') . '</p>' .
+      '<p><strong>' . $this->t('Detected configuration:') . '</strong> ' . $auth_type . '</p>' .
+      '<p>' . $this->t('To modify credentials, update the <code>$settings["cloudflare_purge_credentials"]</code> array in your <code>settings.php</code> file.') . '</p>' .
+      '<p>' . $this->t('All database-stored credentials have been disabled and will be cleaned on form submission for security.') . '</p>' .
+      '</div>',
     ];
 
     return $form;
