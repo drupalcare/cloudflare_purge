@@ -22,7 +22,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
  */
 #[LegacyHook]
 function cloudflare_purge_help(string $route_name, RouteMatchInterface $route_match): string {
-  return \Drupal::service(CloudflarePurgeHooks::class)->help($route_name, $route_match);
+  return \Drupal::classResolver(CloudflarePurgeHooks::class)->help($route_name, $route_match);
 }
 
 /**
@@ -62,5 +62,5 @@ function cloudflare_purge_cache_flush(): void {
  */
 #[LegacyHook]
 function cloudflare_purge_cron(): void {
-  \Drupal::service(CloudflarePurgeHooks::class)->cron();
+  \Drupal::classResolver(CloudflarePurgeHooks::class)->cron();
 }
