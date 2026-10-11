@@ -20,21 +20,24 @@ include:
 ################
 # Test every core version this module claims to support.
 #
-# info.yml declares `core_version_requirement: ^10 || ^11`, but the DA template
-# only tests the current core version by default (OPT_IN_TEST_CURRENT), and all
-# the other variants default to '0'. That gap is how 3.1.2 shipped a class that
-# was fatal to autoload on Drupal 10 with a fully green pipeline (#3614126).
+# info.yml declares `core_version_requirement: ^10 || ^11 || ^12`, but the DA
+# template only tests the current core version by default (OPT_IN_TEST_CURRENT),
+# and all the other variants default to '0'. That gap is how 3.1.2 shipped a
+# class that was fatal to autoload on Drupal 10 with a fully green pipeline
+# (#3614126).
 #
 # `phpunit (previous major)` and `phpunit (previous minor)` carry no
 # allow_failure in the template, so a break on Drupal 10 or on the previous
-# minor now turns the pipeline red instead of going unnoticed until release.
+# minor turns the pipeline red instead of going unnoticed until release.
 #
-# Next minor/major are deliberately left off here: those jobs are
-# allow_failure: true, so they would not gate anything, and this branch does
-# NEXT MAJOR is now ON. This branch previously did not claim Drupal 12 and this
-# file said so; the claim has since landed in info.yml and composer.json, and
-# the module has been verified installing and running on 12.0-dev. A claim
-# without a job is exactly what this whole sweep existed to find.
+# Next major = core `main-dev`, which is Drupal 12 (12.0-dev, measured
+# 2026-10-10 in core's Drupal.php and in this fleet's job logs). It was set to
+# '0' on 2026-10-05 on the belief that it tested Drupal 13; it did not.
+# `composer (next major)` was failing because drupal/key (require-dev) does not
+# declare the next core major; the lenient override at the bottom handles that.
+# `phpunit (next major)` is allow_failure in the template, so it reports and
+# does not gate. When core main moves to 13.x this job tests Drupal 13
+# instead, and Drupal 12 then needs its own coverage.
 ################
 # Two switches are needed per variant, not one. OPT_IN_TEST_* decides whether
 # the job is created at all; _AUTORUN_* decides whether it runs by itself or
@@ -46,5 +49,15 @@ variables:
   _AUTORUN_PREVIOUS_MAJOR: 'all'
   OPT_IN_TEST_PREVIOUS_MINOR: '1'
   _AUTORUN_PREVIOUS_MINOR: 'all'
-  OPT_IN_TEST_NEXT_MAJOR: '0'
+  OPT_IN_TEST_NEXT_MAJOR: '1'
   _AUTORUN_NEXT_MAJOR: 'all'
+
+# drupal/key ^1.22 does not allow core main-dev, so Composer could not resolve
+# it (pipelines 954290-990557: "Your requirements could not be resolved"). The
+# lenient plugin ignores key's core constraint in THIS job only, as documented
+# at https://project.pages.drupalcode.org/gitlab_templates/jobs/composer/
+# ("Lenient support"); `phpunit (next major)` then amends key's info.yml so it
+# can be installed for the tests.
+composer (next major):
+  variables:
+    _LENIENT_ALLOW_LIST: 'key'
