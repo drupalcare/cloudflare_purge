@@ -47,7 +47,7 @@ final class PurgeEverythingCoverageTest extends UnitTestCase {
    *   The service under test.
    */
   private function buildPurge(CloudflarePurgeApiInterface $api, StateInterface $state): Purge {
-    $config = $this->createMock(ImmutableConfig::class);
+    $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => match ($key) {
       'rate_limit_enabled' => FALSE,
       'logging_enabled' => FALSE,
@@ -57,7 +57,7 @@ final class PurgeEverythingCoverageTest extends UnitTestCase {
     $configFactory = $this->createMock(ConfigFactoryInterface::class);
     $configFactory->method('get')->with('cloudflare_purge.settings')->willReturn($config);
 
-    $credentialResolver = $this->createMock(CredentialResolverInterface::class);
+    $credentialResolver = $this->createStub(CredentialResolverInterface::class);
     $credentialResolver->method('getCredentials')->willReturn([
       'use_bearer' => TRUE,
       'zone_id' => 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
@@ -68,11 +68,11 @@ final class PurgeEverythingCoverageTest extends UnitTestCase {
 
     $purge = new Purge(
       $configFactory,
-      $this->createMock(LoggerChannelInterface::class),
-      $this->createMock(MessengerInterface::class),
+      $this->createStub(LoggerChannelInterface::class),
+      $this->createStub(MessengerInterface::class),
       $api,
       $state,
-      $this->createMock(CacheTagFormatterInterface::class),
+      $this->createStub(CacheTagFormatterInterface::class),
       $credentialResolver,
     );
     $purge->setStringTranslation($this->getStringTranslationStub());
@@ -84,7 +84,7 @@ final class PurgeEverythingCoverageTest extends UnitTestCase {
    * A successful purge-everything records the full-purge timestamp in state.
    */
   public function testSuccessfulPurgeEverythingRecordsTimestamp(): void {
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeEverything')->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
 
     $state = $this->createMock(StateInterface::class);
@@ -108,7 +108,7 @@ final class PurgeEverythingCoverageTest extends UnitTestCase {
    * needed and must not be marked as covered.
    */
   public function testFailedPurgeEverythingRecordsNothing(): void {
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeEverything')->willReturn(new CloudflarePurgeResult(FALSE, 500, 'Internal Server Error'));
 
     $state = $this->createMock(StateInterface::class);

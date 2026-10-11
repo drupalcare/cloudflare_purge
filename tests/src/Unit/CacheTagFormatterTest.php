@@ -50,7 +50,7 @@ class CacheTagFormatterTest extends UnitTestCase {
   private function createFormatter(array $config = [], ?LoggerChannelInterface $logger = NULL): CacheTagFormatter {
     $values = $config + self::defaultConfig();
 
-    $immutable = $this->createMock(ImmutableConfig::class);
+    $immutable = $this->createStub(ImmutableConfig::class);
     $immutable->method('get')->willReturnCallback(
       static fn(string $key): mixed => $values[$key] ?? NULL,
     );
@@ -60,7 +60,7 @@ class CacheTagFormatterTest extends UnitTestCase {
 
     return new CacheTagFormatter(
       $configFactory,
-      $logger ?? $this->createMock(LoggerChannelInterface::class),
+      $logger ?? $this->createStub(LoggerChannelInterface::class),
     );
   }
 

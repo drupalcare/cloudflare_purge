@@ -37,7 +37,7 @@ class CredentialResolverTest extends UnitTestCase {
     // Control the static Settings singleton.
     new Settings($settingsOverride === NULL ? [] : ['cloudflare_purge_credentials' => $settingsOverride]);
 
-    $immutable = $this->createMock(ImmutableConfig::class);
+    $immutable = $this->createStub(ImmutableConfig::class);
     $immutable->method('get')->willReturnCallback(
       static fn(string $key): mixed => $config[$key] ?? NULL,
     );
@@ -45,7 +45,7 @@ class CredentialResolverTest extends UnitTestCase {
     $configFactory = $this->createMock(ConfigFactoryInterface::class);
     $configFactory->method('get')->with(CloudflarePurgeSettings::NAME)->willReturn($immutable);
 
-    $moduleHandler = $this->createMock(ModuleHandlerInterface::class);
+    $moduleHandler = $this->createStub(ModuleHandlerInterface::class);
     $moduleHandler->method('moduleExists')->willReturnCallback(
       static fn(string $module): bool => $module === 'key' && $keyModule,
     );

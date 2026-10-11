@@ -49,16 +49,16 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    *   The worker under test.
    */
   private function buildWorker(array $configMap, PurgeInterface $purgeService, ?LoggerChannelInterface $logger = NULL, ?QueueFactory $queueFactory = NULL, int $lastFullPurge = 0): CloudflarePurgeQueueWorker {
-    $config = $this->createMock(ImmutableConfig::class);
+    $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => $configMap[$key] ?? NULL);
 
     $configFactory = $this->createMock(ConfigFactoryInterface::class);
     $configFactory->method('get')->with('cloudflare_purge.settings')->willReturn($config);
 
-    $logger ??= $this->createMock(LoggerChannelInterface::class);
-    $queueFactory ??= $this->createMock(QueueFactory::class);
+    $logger ??= $this->createStub(LoggerChannelInterface::class);
+    $queueFactory ??= $this->createStub(QueueFactory::class);
 
-    $state = $this->createMock(StateInterface::class);
+    $state = $this->createStub(StateInterface::class);
     $state->method('get')->willReturnCallback(
       static fn(string $key, $default = NULL) => $key === 'cloudflare_purge.last_purge_everything' ? $lastFullPurge : $default,
     );
@@ -175,7 +175,7 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    * info() on every success, flooding dblog on auto-purge.
    */
   public function testSuccessfulPurgeNotLoggedWhenLoggingDisabled(): void {
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeByTags')
       ->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
 
@@ -191,7 +191,7 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    * Detailed logging on: a successful purge is logged once.
    */
   public function testSuccessfulPurgeLoggedWhenLoggingEnabled(): void {
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeByTags')
       ->willReturn(new CloudflarePurgeResult(TRUE, 200, 'ok'));
 
@@ -237,14 +237,14 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    * also releases the original claimed item back on SuspendQueueException.
    */
   public function testRateLimitSuspendsWithoutRequeueing(): void {
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeByTags')
       ->willReturn(new CloudflarePurgeResult(FALSE, 429, 'Rate limited'));
 
     $queue = $this->createMock(QueueInterface::class);
     $queue->expects($this->never())->method('createItem');
 
-    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory = $this->createStub(QueueFactory::class);
     $queueFactory->method('get')->willReturn($queue);
 
     $worker = $this->buildWorker([], $purgeService, NULL, $queueFactory);
@@ -297,14 +297,14 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    * throws RequeueException and core keeps the original claimed item.
    */
   public function testRequeueFailureThrowsRequeueException(): void {
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeByTags')
       ->willReturn(new CloudflarePurgeResult(FALSE, 500, 'Internal Server Error'));
 
-    $queue = $this->createMock(QueueInterface::class);
+    $queue = $this->createStub(QueueInterface::class);
     $queue->method('createItem')->willReturn(FALSE);
 
-    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory = $this->createStub(QueueFactory::class);
     $queueFactory->method('get')->willReturn($queue);
 
     $worker = $this->buildWorker([], $purgeService, NULL, $queueFactory);
@@ -321,14 +321,14 @@ class CloudflarePurgeQueueWorkerTest extends TestCase {
    * returning FALSE) while creating the retry item.
    */
   public function testRequeueBackendExceptionThrowsRequeueException(): void {
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeByTags')
       ->willReturn(new CloudflarePurgeResult(FALSE, 500, 'Internal Server Error'));
 
-    $queue = $this->createMock(QueueInterface::class);
+    $queue = $this->createStub(QueueInterface::class);
     $queue->method('createItem')->willThrowException(new \RuntimeException('Queue backend down'));
 
-    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory = $this->createStub(QueueFactory::class);
     $queueFactory->method('get')->willReturn($queue);
 
     $worker = $this->buildWorker([], $purgeService, NULL, $queueFactory);

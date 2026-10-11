@@ -153,7 +153,7 @@ class CloudflarePurgeByUrlTest extends UnitTestCase {
    *   The form instance.
    */
   protected function createForm(): CloudflarePurgeByUrl {
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $form = new CloudflarePurgeByUrl($purgeService);
     $form->setStringTranslation($this->getStringTranslationStub());
 

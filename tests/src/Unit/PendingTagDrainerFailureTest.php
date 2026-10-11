@@ -41,13 +41,13 @@ final class PendingTagDrainerFailureTest extends UnitTestCase {
     // the item.
     $store->expects($this->never())->method('deleteDrained');
 
-    $queue = $this->createMock(QueueInterface::class);
+    $queue = $this->createStub(QueueInterface::class);
     $queue->method('createItem')->willReturn(FALSE);
 
-    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory = $this->createStub(QueueFactory::class);
     $queueFactory->method('get')->willReturn($queue);
 
-    $lock = $this->createMock(LockBackendInterface::class);
+    $lock = $this->createStub(LockBackendInterface::class);
     $lock->method('acquire')->willReturn(TRUE);
 
     $logger = $this->createMock(LoggerChannelInterface::class);
@@ -66,12 +66,12 @@ final class PendingTagDrainerFailureTest extends UnitTestCase {
     $store->expects($this->never())->method('getOldest');
     $store->expects($this->never())->method('deleteDrained');
 
-    $queueFactory = $this->createMock(QueueFactory::class);
+    $queueFactory = $this->createStub(QueueFactory::class);
 
-    $lock = $this->createMock(LockBackendInterface::class);
+    $lock = $this->createStub(LockBackendInterface::class);
     $lock->method('acquire')->willReturn(FALSE);
 
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
 
     $drainer = new PendingTagDrainer($store, $queueFactory, $lock, $logger);
 

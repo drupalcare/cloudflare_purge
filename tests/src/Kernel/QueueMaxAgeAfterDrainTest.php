@@ -96,7 +96,7 @@ final class QueueMaxAgeAfterDrainTest extends KernelTestBase {
       'cloudflare_purge_tags',
       [],
       $purgeService,
-      $this->createMock(LoggerChannelInterface::class),
+      $this->createStub(LoggerChannelInterface::class),
       $this->container->get('queue'),
       $this->container->get('config.factory'),
       $this->container->get('state'),

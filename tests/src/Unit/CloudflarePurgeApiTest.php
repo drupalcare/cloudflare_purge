@@ -36,7 +36,7 @@ class CloudflarePurgeApiTest extends TestCase {
    * detailed logging disabled.
    */
   public function testSuccessfulPurgeDoesNotLog(): void {
-    $httpClient = $this->createMock(ClientInterface::class);
+    $httpClient = $this->createStub(ClientInterface::class);
     $logger = $this->createMock(LoggerChannelInterface::class);
 
     $response = new Response(200, [], (string) json_encode(['success' => TRUE, 'result' => ['id' => 'test']]));
@@ -59,7 +59,7 @@ class CloudflarePurgeApiTest extends TestCase {
    */
   public function testPurgeEverythingWithBearerToken(): void {
     $httpClient = $this->createMock(ClientInterface::class);
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
 
     $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
     $response = new Response(200, [], $responseBody);
@@ -89,7 +89,7 @@ class CloudflarePurgeApiTest extends TestCase {
    */
   public function testPurgeEverythingWithApiKey(): void {
     $httpClient = $this->createMock(ClientInterface::class);
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
 
     $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
     $response = new Response(200, [], $responseBody);
@@ -119,7 +119,7 @@ class CloudflarePurgeApiTest extends TestCase {
    */
   public function testPurgeByUrls(): void {
     $httpClient = $this->createMock(ClientInterface::class);
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
 
     $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
     $response = new Response(200, [], $responseBody);
@@ -154,7 +154,7 @@ class CloudflarePurgeApiTest extends TestCase {
    */
   public function testPurgeByTags(): void {
     $httpClient = $this->createMock(ClientInterface::class);
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
 
     $responseBody = json_encode(['success' => TRUE, 'result' => ['id' => 'test']]);
     $response = new Response(200, [], $responseBody);
@@ -189,7 +189,7 @@ class CloudflarePurgeApiTest extends TestCase {
    */
   public function testInvalidZoneIdFormat(): void {
     $httpClient = $this->createMock(ClientInterface::class);
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
 
     // Should not make HTTP request with invalid zone ID.
     $httpClient->expects($this->never())->method('request');
@@ -206,7 +206,7 @@ class CloudflarePurgeApiTest extends TestCase {
    */
   public function testEmptyUrlsReturnsError(): void {
     $httpClient = $this->createMock(ClientInterface::class);
-    $logger = $this->createMock(LoggerChannelInterface::class);
+    $logger = $this->createStub(LoggerChannelInterface::class);
 
     $httpClient->expects($this->never())->method('request');
 

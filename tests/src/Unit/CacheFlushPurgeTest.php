@@ -14,7 +14,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -40,7 +40,7 @@ final class CacheFlushPurgeTest extends TestCase {
    *
    * @param bool $flushEnabled
    *   Value of the purge_everything_on_flush setting.
-   * @param \Drupal\cloudflare_purge\PurgeInterface&\PHPUnit\Framework\MockObject\MockObject $purgeService
+   * @param \Drupal\cloudflare_purge\PurgeInterface&\PHPUnit\Framework\MockObject\Stub $purgeService
    *   The purge service mock (expectations set by the caller).
    * @param bool $hasCredentials
    *   Whether credentials are configured.
@@ -48,8 +48,8 @@ final class CacheFlushPurgeTest extends TestCase {
    * @return \Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator
    *   The invalidator under test.
    */
-  private function buildInvalidator(bool $flushEnabled, PurgeInterface&MockObject $purgeService, bool $hasCredentials): CloudflareCacheTagInvalidator {
-    $config = $this->createMock(ImmutableConfig::class);
+  private function buildInvalidator(bool $flushEnabled, PurgeInterface&Stub $purgeService, bool $hasCredentials): CloudflareCacheTagInvalidator {
+    $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(
       static fn(string $key) => $key === 'purge_everything_on_flush' ? $flushEnabled : NULL,
     );
@@ -62,9 +62,9 @@ final class CacheFlushPurgeTest extends TestCase {
     return new CloudflareCacheTagInvalidator(
       $purgeService,
       $configFactory,
-      $this->createMock(LoggerChannelInterface::class),
-      $this->createMock(PendingTagsStoreInterface::class),
-      $this->createMock(CacheTagFormatterInterface::class),
+      $this->createStub(LoggerChannelInterface::class),
+      $this->createStub(PendingTagsStoreInterface::class),
+      $this->createStub(CacheTagFormatterInterface::class),
     );
   }
 
@@ -109,7 +109,7 @@ final class CacheFlushPurgeTest extends TestCase {
    * drupal_flush_all_caches().
    */
   public function testFlushSwallowsPurgeExceptions(): void {
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeEverything')
       ->willThrowException(new \RuntimeException('Cloudflare unreachable'));
 

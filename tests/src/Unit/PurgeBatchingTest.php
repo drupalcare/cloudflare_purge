@@ -63,13 +63,13 @@ final class PurgeBatchingTest extends UnitTestCase {
    *   The service under test.
    */
   private function buildPurge(array $configMap, CloudflarePurgeApiInterface $api, string $zoneId = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'): Purge {
-    $config = $this->createMock(ImmutableConfig::class);
+    $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => $configMap[$key] ?? NULL);
 
     $configFactory = $this->createMock(ConfigFactoryInterface::class);
     $configFactory->method('get')->with('cloudflare_purge.settings')->willReturn($config);
 
-    $credentialResolver = $this->createMock(CredentialResolverInterface::class);
+    $credentialResolver = $this->createStub(CredentialResolverInterface::class);
     $credentialResolver->method('getCredentials')->willReturn([
       'use_bearer' => TRUE,
       'zone_id' => $zoneId,
@@ -78,14 +78,14 @@ final class PurgeBatchingTest extends UnitTestCase {
       'authorization' => NULL,
     ]);
 
-    $formatter = $this->createMock(CacheTagFormatterInterface::class);
+    $formatter = $this->createStub(CacheTagFormatterInterface::class);
     $formatter->method('formatForWire')->willReturnArgument(0);
 
     // Stateful rate-limit store, seeded in the current minute at count 0.
     // Captured by reference so per-request increments persist across calls
     // (arrow functions capture by value, so a regular closure is required).
     $store = ['minute' => (int) floor(time() / 60), 'count' => 0];
-    $state = $this->createMock(StateInterface::class);
+    $state = $this->createStub(StateInterface::class);
     $state->method('get')->willReturnCallback(static function (string $k) use (&$store) {
       return $store;
     });
@@ -95,8 +95,8 @@ final class PurgeBatchingTest extends UnitTestCase {
 
     $purge = new Purge(
       $configFactory,
-      $this->createMock(LoggerChannelInterface::class),
-      $this->createMock(MessengerInterface::class),
+      $this->createStub(LoggerChannelInterface::class),
+      $this->createStub(MessengerInterface::class),
       $api,
       $state,
       $formatter,
@@ -112,7 +112,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testSingleBatchReturnsApiResultVerbatim(): void {
     $calls = 0;
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function () use (&$calls): CloudflarePurgeResult {
         $calls++;
@@ -136,7 +136,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testMultipleBatchesAggregateSuccess(): void {
     $sizes = [];
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function (bool $b, string $z, string $t, $a, $e, array $tags) use (&$sizes): CloudflarePurgeResult {
         $sizes[] = count($tags);
@@ -158,7 +158,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testRateLimitMidRunReturnsPartial(): void {
     $calls = 0;
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function () use (&$calls): CloudflarePurgeResult {
         $calls++;
@@ -193,7 +193,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testFailedBatchContinuesAndReportsPartial(): void {
     $call = 0;
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function () use (&$call): CloudflarePurgeResult {
         $call++;
@@ -218,7 +218,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testCrossBatchDeduplication(): void {
     $sizes = [];
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function (bool $b, string $z, string $t, $a, $e, array $tags) use (&$sizes): CloudflarePurgeResult {
         $sizes[] = count($tags);
@@ -248,7 +248,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testAuthErrorShortCircuitsRemainingBatches(): void {
     $calls = 0;
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function () use (&$calls): CloudflarePurgeResult {
         $calls++;
@@ -276,7 +276,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testApiRateLimitMidRunShortCircuits(): void {
     $call = 0;
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function () use (&$call): CloudflarePurgeResult {
         $call++;
@@ -302,7 +302,7 @@ final class PurgeBatchingTest extends UnitTestCase {
    */
   public function testInvalidZoneIdFailsFastWithoutApiCalls(): void {
     $calls = 0;
-    $api = $this->createMock(CloudflarePurgeApiInterface::class);
+    $api = $this->createStub(CloudflarePurgeApiInterface::class);
     $api->method('purgeByTags')
       ->willReturnCallback(function () use (&$calls): CloudflarePurgeResult {
         $calls++;

@@ -46,7 +46,7 @@ final class BatchingCharacterizationTest extends TestCase {
    *   The API client under test.
    */
   private function apiCapturingPayload(?array &$captured, LoggerChannelInterface $logger): CloudflarePurgeApi {
-    $httpClient = $this->createMock(ClientInterface::class);
+    $httpClient = $this->createStub(ClientInterface::class);
     $response = new Response(200, [], (string) json_encode(['success' => TRUE, 'result' => ['id' => 'x']]));
 
     $httpClient->method('request')
@@ -63,7 +63,7 @@ final class BatchingCharacterizationTest extends TestCase {
    */
   public function testDeduplicatesAndReindexes(): void {
     $captured = NULL;
-    $api = $this->apiCapturingPayload($captured, $this->createMock(LoggerChannelInterface::class));
+    $api = $this->apiCapturingPayload($captured, $this->createStub(LoggerChannelInterface::class));
 
     $api->purgeByTags(TRUE, self::TEST_ZONE_ID, 'token', NULL, NULL, [
       'node:1',
@@ -81,7 +81,7 @@ final class BatchingCharacterizationTest extends TestCase {
    */
   public function testTrimsAndDropsEmpties(): void {
     $captured = NULL;
-    $api = $this->apiCapturingPayload($captured, $this->createMock(LoggerChannelInterface::class));
+    $api = $this->apiCapturingPayload($captured, $this->createStub(LoggerChannelInterface::class));
 
     $api->purgeByUrls(TRUE, self::TEST_ZONE_ID, 'token', NULL, NULL, [
       '  https://example.com/a  ',

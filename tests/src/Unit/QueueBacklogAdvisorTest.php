@@ -38,16 +38,16 @@ final class QueueBacklogAdvisorTest extends UnitTestCase {
    *   The advisor under test.
    */
   private function buildAdvisor(array $configMap, int $pendingCount, int $queueItemCount): QueueBacklogAdvisor {
-    $config = $this->createMock(ImmutableConfig::class);
+    $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => $configMap[$key] ?? NULL);
 
     $configFactory = $this->createMock(ConfigFactoryInterface::class);
     $configFactory->method('get')->with('cloudflare_purge.settings')->willReturn($config);
 
-    $pendingTagsStore = $this->createMock(PendingTagsStoreInterface::class);
+    $pendingTagsStore = $this->createStub(PendingTagsStoreInterface::class);
     $pendingTagsStore->method('count')->willReturn($pendingCount);
 
-    $queue = $this->createMock(QueueInterface::class);
+    $queue = $this->createStub(QueueInterface::class);
     $queue->method('numberOfItems')->willReturn($queueItemCount);
 
     $queueFactory = $this->createMock(QueueFactory::class);

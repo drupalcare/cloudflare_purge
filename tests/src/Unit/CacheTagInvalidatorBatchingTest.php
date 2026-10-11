@@ -14,7 +14,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -55,7 +55,7 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
    *
    * @param bool $useQueue
    *   Whether auto_purge_use_queue is enabled.
-   * @param \Drupal\cloudflare_purge\PurgeInterface&\PHPUnit\Framework\MockObject\MockObject $purgeService
+   * @param \Drupal\cloudflare_purge\PurgeInterface&\PHPUnit\Framework\MockObject\Stub $purgeService
    *   The purge service mock.
    * @param \Drupal\cloudflare_purge\PendingTagsStoreInterface $pendingTagsStore
    *   The pending-tags store mock.
@@ -63,12 +63,12 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
    * @return \Drupal\cloudflare_purge\Cache\CloudflareCacheTagInvalidator
    *   The invalidator under test.
    */
-  private function buildInvalidator(bool $useQueue, PurgeInterface&MockObject $purgeService, PendingTagsStoreInterface $pendingTagsStore): CloudflareCacheTagInvalidator {
+  private function buildInvalidator(bool $useQueue, PurgeInterface&Stub $purgeService, PendingTagsStoreInterface $pendingTagsStore): CloudflareCacheTagInvalidator {
     $configMap = [
       'auto_purge_enabled' => TRUE,
       'auto_purge_use_queue' => $useQueue,
     ];
-    $config = $this->createMock(ImmutableConfig::class);
+    $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturnCallback(static fn(string $key) => $configMap[$key] ?? NULL);
 
     $configFactory = $this->createMock(ConfigFactoryInterface::class);
@@ -76,13 +76,13 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
 
     $purgeService->method('hasCredentials')->willReturn(TRUE);
 
-    $formatter = $this->createMock(CacheTagFormatterInterface::class);
+    $formatter = $this->createStub(CacheTagFormatterInterface::class);
     $formatter->method('selectForPurge')->willReturnArgument(0);
 
     return new CloudflareCacheTagInvalidator(
       $purgeService,
       $configFactory,
-      $this->createMock(LoggerChannelInterface::class),
+      $this->createStub(LoggerChannelInterface::class),
       $pendingTagsStore,
       $formatter,
     );
@@ -97,7 +97,7 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
   public function testImmediatePurgeDelegatesFullSetToPurgeService(): void {
     $received = [];
     $calls = 0;
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeByTags')
       ->willReturnCallback(function (array $tags) use (&$received, &$calls): CloudflarePurgeResult {
         $calls++;
@@ -124,7 +124,7 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
   public function testQueueModeMergesFullSetIntoPendingStore(): void {
     $received = [];
     $calls = 0;
-    $pendingTagsStore = $this->createMock(PendingTagsStoreInterface::class);
+    $pendingTagsStore = $this->createStub(PendingTagsStoreInterface::class);
     $pendingTagsStore->method('add')
       ->willReturnCallback(function (array $tags) use (&$received, &$calls): int {
         $calls++;
@@ -148,14 +148,14 @@ final class CacheTagInvalidatorBatchingTest extends TestCase {
    */
   public function testSingleBatchYieldsOneCall(): void {
     $calls = 0;
-    $purgeService = $this->createMock(PurgeInterface::class);
+    $purgeService = $this->createStub(PurgeInterface::class);
     $purgeService->method('purgeByTags')
       ->willReturnCallback(function () use (&$calls): CloudflarePurgeResult {
         $calls++;
         return new CloudflarePurgeResult(TRUE, 200, 'ok');
       });
 
-    $invalidator = $this->buildInvalidator(FALSE, $purgeService, $this->createMock(PendingTagsStoreInterface::class));
+    $invalidator = $this->buildInvalidator(FALSE, $purgeService, $this->createStub(PendingTagsStoreInterface::class));
 
     $invalidator->invalidateTags($this->makeTags(30));
 
