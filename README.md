@@ -64,7 +64,7 @@ Use this module when you need to purge Cloudflare cache and:
 
 ### Optional
 
-- **[Key Module](https://www.drupal.org/project/key)** - For enhanced credential security (recommended for production)
+- **[Key Module](https://www.drupal.org/project/key)** - For stronger credential security (recommended for production)
 - **Paid Cloudflare Plan** - For higher rate limits on tag, prefix, and hostname purging (optional)
 
 ## Installation
@@ -93,7 +93,7 @@ drush en cloudflare_purge
 3. **Choose Storage Method:**
 
    - **Plain text input** - Store credentials in Drupal configuration (database)
-   - **Secure key input** - Use the Key module for enhanced security (requires Key module)
+   - **Secure key input** - Use the Key module for stronger security (requires Key module)
 
 4. Enter your credentials based on your selections
 
@@ -170,7 +170,7 @@ For development or quick setup:
 
 ### Via settings.php (Recommended for Production)
 
-For enhanced security, store credentials in `settings.php`. When a **complete set** of credentials is detected in settings.php, the configuration form will be automatically disabled.
+For stronger security, store credentials in `settings.php`. When a **complete set** of credentials is detected in settings.php, the configuration form will be automatically disabled.
 
 **Important:** You must provide a complete set of credentials:
 - Bearer Token method: `zone_id` + `bearer_token`

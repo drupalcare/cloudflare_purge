@@ -1,6 +1,6 @@
-# Drupal 12 — work needed
+# Drupal 12: work needed
 
-**Status: NOT DONE.** Analysed 2026-08-05 against Drupal `12.0-dev`, deliberately
+**Status: NOT DONE.** Analyzed 2026-08-05 against Drupal `12.0-dev`, deliberately
 left for later. The `^12` in `cloudflare_purge.info.yml` is a declaration only —
 **the module does not currently work on Drupal 12.**
 
@@ -16,10 +16,10 @@ In ClassResolver.php line 32:
 ```
 
 **Drupal 12 removed procedural `hook_requirements()`.** Drupal 11.2 deprecated it
-in favour of two replacements, and 12 dropped the old form entirely. Because the
+in favor of two replacements, and 12 dropped the old form entirely. Because the
 hook system now resolves implementations through the class resolver, the function
 name `cloudflare_purge_requirements` is interpreted as a *class name*, which does
-not exist — hence the error.
+not exist, hence the error.
 
 **This is worse than one broken module.** Once it is enabled, the failure happens
 during container build, so *every subsequent* `drush en` on that site fails too,
@@ -47,7 +47,7 @@ It reports three status keys on `/admin/reports/status`:
 | `cloudflare_purge_key` | whether the Key module is in use |
 | `cloudflare_purge_auto` | auto-purge on/off |
 
-Nothing here affects purging behaviour. These are advisory status rows only.
+Nothing here affects purging behavior. These are advisory status rows only.
 
 ## The fix
 
@@ -71,7 +71,7 @@ function cloudflare_purge_runtime_requirements(): array {
 }
 ```
 
-**CORRECTED 2026-09-06 — the sentence that stood here was false, and it was
+**CORRECTED 2026-09-06. The sentence that stood here was false, and it was
 the only part of this file that mattered.** It read: *"`REQUIREMENT_OK` /
 `REQUIREMENT_WARNING` / `REQUIREMENT_INFO` / `REQUIREMENT_ERROR` still exist in
 Drupal 12."*
@@ -85,7 +85,7 @@ usage and could not be installed on Drupal 12 at all.
 So **the body is NOT untouched**: every severity has to change. The replacement
 is the enum `\Drupal\Core\Extension\Requirement\RequirementSeverity`, added
 in Drupal 11.2. Since this module also declares `^10 || ^11`, the two cannot
-both be written literally — see `acquia_purge_varnish`'s
+both be written literally. See `acquia_purge_varnish`'s
 `_acquia_purge_varnish_severity()` helper, which picks between them with
 `enum_exists()`.
 
@@ -95,12 +95,12 @@ their values (-1/0/1/2), so `2` looks portable; it is not.
 `$requirement['severity']->value`, so an int fatals on a property read instead.
 
 **And check the install-phase guard separately.** On Drupal 12, install-phase
-requirements no longer come from the procedural hook at all — core reads them
+requirements no longer come from the procedural hook at all. Core reads them
 from a class in `src/Install/Requirements/` implementing
 `InstallRequirementsInterface`. Any row here that is meant to *block* an
 install stops blocking silently until that class exists.
 
-**Estimated effort: no longer ~15 minutes** — the severity rewrite and the
+**Estimated effort: no longer ~15 minutes**. The severity rewrite and the
 install-phase class are both real work. Budget it like the sibling module.
 
 ## The catch: supported core range
@@ -115,12 +115,12 @@ that range:
 
 Three options:
 
-1. **Both, version-guarded** — add the new hook, keep the old one wrapped in
+1. **Both, version-guarded**: add the new hook, keep the old one wrapped in
    `version_compare(\Drupal::VERSION, '11.2', '<')`. Full range works; the
    guard stays until D10/D11.1 support is dropped.
-2. **Narrow to `^11.2 || ^12`** *(recommended for this module)* — new hook only,
+2. **Narrow to `^11.2 || ^12`** *(recommended for this module)*: new hook only,
    cleanest code. A CloudFlare purge module for Drupal 10 is a thin audience.
-3. **New hook only, keep the wide range** — status rows silently stop appearing
+3. **New hook only, keep the wide range**: status rows silently stop appearing
    on D10/D11.0/D11.1. Cosmetic, but a silent regression. Not recommended.
 
 ## Testing when it is done

@@ -34,7 +34,7 @@
   <li><strong>Free Tier Compatible</strong> – Works with Cloudflare's free plan</li>
 </ul>
 
-<h2><strong>Latest Version Highlights</strong></h2>
+<h2><strong>What changed in the latest version</strong></h2>
 <p><strong>Hardened, batch-aware cache purging for Drupal 10.3+ and 11.</strong></p>
 <ul>
   <li><strong>Automatic batching of large purges</strong> – Submit any number of URLs, tags, prefixes or hostnames from the UI, Drush or auto-purge; the module splits them into Cloudflare-sized requests (up to 100 each) and reports exactly how many were purged. The forms no longer reject lists larger than the per-request limit.</li>
@@ -117,7 +117,7 @@
   </li>
   <li><strong>Optional</strong>:
     <ul>
-      <li><a href="https://www.drupal.org/project/key" target="_blank"><strong>Key module</strong></a> for enhanced credential security</li>
+      <li><a href="https://www.drupal.org/project/key" target="_blank"><strong>Key module</strong></a> for stronger credential security</li>
       <li><strong>Higher rate limits</strong> on paid plans for tag, prefix, and hostname purging</li>
     </ul>
   </li>
@@ -130,7 +130,7 @@ drush en cloudflare_purge</code></pre>
 
 <p>Or install as you would any contributed Drupal module. Visit the <a href="https://www.drupal.org/docs/extending-drupal/installing-modules" target="_blank">Drupal.org module installation documentation</a> for more information.</p>
 
-<p><strong>Optional:</strong> For enhanced security, install the Key module:</p>
+<p><strong>Optional:</strong> For stronger security, install the Key module:</p>
 <pre><code>composer require drupal/key
 drush en key</code></pre>
 
@@ -151,7 +151,7 @@ drush en key</code></pre>
   <li><strong>Choose Storage Method:</strong>
     <ul>
       <li><strong>Plain text input</strong> – Quick setup, credentials stored in database</li>
-      <li><strong>Secure key input</strong> – Use Key module for enhanced security (requires Key module)</li>
+      <li><strong>Secure key input</strong> – Use Key module for stronger security (requires Key module)</li>
     </ul>
   </li>
   <li><strong>Enter Credentials:</strong>
@@ -198,7 +198,7 @@ drush en key</code></pre>
   <li>Zone ID is shown in the right sidebar of the overview page</li>
 </ul>
 
-<h3>Enhanced Security: Key Module Integration</h3>
+<h3>Stronger security: Key module integration</h3>
 <p>The Key module allows you to store credentials outside of the database using secure providers:</p>
 
 <p><strong>Available Key Providers:</strong></p>
@@ -281,7 +281,7 @@ if (isset($_ENV['CLOUDFLARE_ZONE_ID'])) {
 <p>The module uses a three-tier system for resolving credentials:</p>
 <ol>
   <li><strong>settings.php</strong> – Highest priority, always wins (production recommended)</li>
-  <li><strong>Key module</strong> – If installed and configured (enhanced security)</li>
+  <li><strong>Key module</strong> – If installed and configured (stronger security)</li>
   <li><strong>Plain text config</strong> – Database storage (quick setup, backward compatibility)</li>
 </ol>
 
@@ -419,7 +419,7 @@ $ drush cloudflare:status
     </tr>
   </tbody>
 </table>
-<p>The module automatically batches larger requests on every entry point — the web UI, Drush commands, and automatic cache-tag purging.</p>
+<p>The module automatically batches larger requests on every entry point: the web UI, Drush commands, and automatic cache-tag purging.</p>
 <p><strong>Important:</strong> Rate limits are subject to change. For the latest information, see <a href="https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits" target="_blank">Cloudflare's official documentation</a>. <em>(Last verified: January 2026)</em></p>
 
 <h2><strong>Security</strong></h2>
@@ -506,7 +506,7 @@ $ drush cloudflare:status
   <li><a href="https://developers.cloudflare.com/fundamentals/api/" target="_blank">Getting Started with Cloudflare API</a></li>
   <li><a href="https://developers.cloudflare.com/cache/how-to/purge-cache/" target="_blank">Cache Purge Best Practices</a></li>
   <li><a href="https://support.cloudflare.com/hc/en-us/articles/201883834" target="_blank">Using Cloudflare and Drupal: Five Recommended Steps</a></li>
-  <li><a href="https://www.drupal.org/project/key" target="_blank">Key Module</a> – For enhanced credential security</li>
+  <li><a href="https://www.drupal.org/project/key" target="_blank">Key Module</a> – For stronger credential security</li>
   <li><a href="https://www.drupal.org/docs/contributed-modules/key" target="_blank">Key Module Documentation</a></li>
 </ul>
 
