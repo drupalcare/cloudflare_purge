@@ -89,6 +89,9 @@ final class CloudflarePurgeEverything extends ConfirmFormBase {
     $form['#attached']['library'][] = 'cloudflare_purge/navigation';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
     $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
+    $form['#attributes']['class'][] = 'cfp-purge';
+    $form['cfp_scope'] = CloudflarePurgeLinks::scope('everything');
+    $form['actions']['submit']['#attributes']['class'][] = 'button--danger';
 
     // Check if credentials are configured.
     if (!$this->purgeService->hasCredentials()) {

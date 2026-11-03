@@ -97,7 +97,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     // Auto-purge section.
     $form['auto_purge'] = [
       '#type' => 'details',
-      '#title' => $this->t('Automatic Cache Tag Purging'),
+      '#attributes' => ['class' => ['cfp-section']],
+      '#title' => $this->detailsTitle($this->t('Automatic Cache Tag Purging'), $this->t('Purge Cloudflare when Drupal content changes'), 'auto_purge_enabled'),
       '#open' => TRUE,
     ];
 
@@ -146,7 +147,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     // Cache-Tag header sizing.
     $form['auto_purge']['header_sizing'] = [
       '#type' => 'details',
-      '#title' => $this->t('Cache-Tag header size'),
+      '#attributes' => ['class' => ['cfp-section']],
+      '#title' => $this->detailsTitle($this->t('Cache-Tag header size'), $this->t('Keep the header under proxy limits'), NULL),
       '#description' => $this->t('Tag-rich pages (Layout Builder, Site Studio, large listings) can produce a very large Cache-Tag header. Cloudflare allows up to 16 KB for the aggregate Cache-Tag header (about 1,000 tags), but intermediate proxies and web servers often enforce lower header limits, which can cause a 5xx with no PHP error. These settings keep the header within a safe size.'),
       '#open' => FALSE,
       '#states' => [
@@ -196,7 +198,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     // Queue settings.
     $form['queue'] = [
       '#type' => 'details',
-      '#title' => $this->t('Queue Settings'),
+      '#attributes' => ['class' => ['cfp-section']],
+      '#title' => $this->detailsTitle($this->t('Queue Settings'), $this->t('Batch and deduplicate purges on cron'), 'auto_purge_use_queue'),
       '#open' => TRUE,
     ];
 
@@ -239,7 +242,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     // Rate limiting.
     $form['rate_limit'] = [
       '#type' => 'details',
-      '#title' => $this->t('Rate Limiting'),
+      '#attributes' => ['class' => ['cfp-section']],
+      '#title' => $this->detailsTitle($this->t('Rate Limiting'), $this->t('Stay inside Cloudflare\'s API limits'), 'rate_limit_enabled'),
       '#open' => FALSE,
     ];
 
@@ -267,7 +271,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     // Logging.
     $form['logging'] = [
       '#type' => 'details',
-      '#title' => $this->t('Logging'),
+      '#attributes' => ['class' => ['cfp-section']],
+      '#title' => $this->detailsTitle($this->t('Logging'), $this->t('Detailed log and history length'), 'logging_enabled'),
       '#open' => FALSE,
     ];
 
@@ -292,7 +297,8 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     // Cache-Tag header instructions.
     $form['instructions'] = [
       '#type' => 'details',
-      '#title' => $this->t('Setup Instructions'),
+      '#attributes' => ['class' => ['cfp-section']],
+      '#title' => $this->detailsTitle($this->t('Setup Instructions'), $this->t('How the Cache-Tag header is sent'), NULL),
       '#open' => FALSE,
     ];
 
@@ -420,6 +426,34 @@ final class CloudflarePurgeSettingsForm extends ConfigFormBase {
     }
 
     return $options;
+  }
+
+
+  /**
+   * Builds a details title: name, one-line hint and an on/off state chip.
+   *
+   * @param \Drupal\Core\StringTranslation\TranslatableMarkup $name
+   *   The section name.
+   * @param \Drupal\Core\StringTranslation\TranslatableMarkup $hint
+   *   A one-line hint.
+   * @param string|null $state_key
+   *   A boolean config key shown as a state chip, or NULL for none.
+   *
+   * @return array<string, mixed>
+   *   A render array used as the details title.
+   */
+  protected function detailsTitle($name, $hint, ?string $state_key): array {
+    $title = [
+      '#type' => 'inline_template',
+      '#template' => '<span class="cfp-head"><span class="cfp-head__name">{{ name }}</span><span class="cfp-head__hint">{{ hint }}</span></span>{% if chip %}<span class="cfp-chip {{ chip_class }}">{{ chip }}</span>{% endif %}',
+      '#context' => ['name' => $name, 'hint' => $hint, 'chip' => '', 'chip_class' => ''],
+    ];
+    if ($state_key !== NULL) {
+      $on = (bool) $this->config(CloudflarePurgeSettings::NAME)->get($state_key);
+      $title['#context']['chip'] = $on ? $this->t('On') : $this->t('Off');
+      $title['#context']['chip_class'] = $on ? 'cfp-chip--on' : 'cfp-chip--off';
+    }
+    return $title;
   }
 
 }

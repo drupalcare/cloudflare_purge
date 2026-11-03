@@ -64,6 +64,8 @@ final class CloudflarePurgeByPrefix extends FormBase {
     $form['#attached']['library'][] = 'cloudflare_purge/navigation';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
     $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
+    $form['#attributes']['class'][] = 'cfp-purge';
+    $form['cfp_scope'] = CloudflarePurgeLinks::scope('prefix');
 
     $form['description'] = [
       '#type' => 'markup',
@@ -74,7 +76,7 @@ final class CloudflarePurgeByPrefix extends FormBase {
 
     $form['note'] = [
       '#type' => 'markup',
-      '#markup' => '<div class="messages messages--info"><strong>' . $this->t('Note:') . '</strong> ' . $this->t('Prefix purging is available on all Cloudflare plans. Free tier: 5 requests/minute, max 100 prefixes per request.') . '</div>',
+      '#markup' => '<div class="cfp-callout cfp-callout--info" role="note"><strong>' . $this->t('Note:') . '</strong> ' . $this->t('Prefix purging is available on all Cloudflare plans. Free tier: 5 requests/minute, max 100 prefixes per request.') . '</div>',
     ];
 
     $form['prefixes'] = [

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **The settings form no longer shows the saved API token or Global API key.**
+  Both fields are password fields now, so the stored value is never written into
+  the page. Leaving a field blank keeps the saved value, which also means a
+  secret can no longer be cleared by emptying its field. On first setup the
+  active credential is still required, checked on the server as well as in the
+  browser. Entered values are trimmed before saving.
+
+### Changed
+- **Settings and purge forms redesigned.** Clearer sections with icons and
+  card-style choices that follow the admin theme's colors. The Cloudflare logo
+  and the old icons are removed; the module ships Material icons (Apache-2.0)
+  instead. No setting was added, removed or renamed.
+
+## [3.1.5] - 2026-10-11
+
+### Fixed
+- HTTP 500 on every page after an update, until caches were rebuilt (#3628961).
+  CI runs the Drupal 12 job again.
+
+## [3.1.4] - 2026-10-05
+
 ### Fixed
 - Fatal error on Drupal 12 whenever the Cloudflare API returned an error. `CloudflarePurgeApi::makeRequest()` called `$e->hasResponse()` and `$e->getResponse()` inside `catch (RequestException $e)`. Guzzle 7 (Drupal 10 and 11) declares both on `RequestException`; Guzzle 8, which Drupal 12 ships, declares neither. A response is carried only by the new `ResponseException` and its subclasses (`BadResponseException`, `ClientException`, `ServerException`, ...), which still extend `RequestException` and so still reach the same catch. Every Cloudflare API *failure* on Drupal 12 therefore died with `Error: Call to undefined method GuzzleHttp\Exception\ClientException::hasResponse()` instead of returning a failed `CloudflarePurgeResult`. The module worked while the API succeeded and fataled when it errored: an invalid token, a rate limit or a 5xx. Verified against both vendor trees: Guzzle 7.9.2 declares `hasResponse()` at `RequestException.php:133`, Guzzle 8.1.0 declares it nowhere. The response is now resolved by feature detection, so one code path is correct on both majors.
 - Verified by running the new tests against the unfixed code on Drupal 12.0-dev: 3 errors, one per exception shape. PHPStan at the project's level 5 drops from 20 errors to 18; the two that disappear are exactly these two calls.

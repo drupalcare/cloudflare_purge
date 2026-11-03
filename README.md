@@ -106,7 +106,9 @@ This is the most secure method with granular permissions.
 1. Select **"Bearer Token"** as your authentication method
 2. Choose your storage method
 3. Enter your **Zone ID**
-4. Enter your **Bearer Token** (or select from Key module if using secure storage)
+4. Enter your **Bearer Token** (or select from Key module if using secure storage).
+   Once saved, the token and the Global API key are never shown again on the
+   form; leave the field blank to keep the saved value.
 5. Save configuration
 
 **Creating a Bearer Token:**
@@ -569,3 +571,7 @@ Cloudflare® is a registered trademark of Cloudflare, Inc.
 ## License
 
 This project is licensed under the GNU General Public License v2.0 or later.
+
+## Icons
+
+The icons in `images/icons/` are Google Material Symbols (Apache-2.0, GPL-compatible), drawings unchanged, viewBox tightened to the painted edge.

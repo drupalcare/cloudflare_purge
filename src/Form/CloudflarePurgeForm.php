@@ -177,88 +177,46 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     // Detect current state.
     $auth_method = $this->detectAuthMethod();
     $storage_method = $this->detectStorageMethod();
-    $module_path = $this->moduleExtensionList->getPath('cloudflare_purge');
-
-    // ========== HEADER SECTION ==========
-    $form['header'] = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['cloudflare-purge-header']],
-    ];
-
-    $form['header']['logo'] = [
-      '#theme' => 'image',
-      '#uri' => base_path() . $module_path . '/images/cloudflare-logo.svg',
-      '#alt' => $this->t('Cloudflare'),
-      '#prefix' => '<div class="cloudflare-purge-header__logo">',
-      '#suffix' => '</div>',
-    ];
-
-    $form['header']['content'] = [
-      '#markup' => '<div class="cloudflare-purge-header__content">' .
-      '<h2>' . $this->t('Cloudflare Purge Configuration') . '</h2>' .
-      '<p>' . $this->t('Manage cache purging for your Cloudflare zones') . '</p>' .
-      '</div>',
-    ];
-
-    // ========== INFO NOTE ==========
-    $form['info_note'] = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['cloudflare-purge-info-note']],
-    ];
-
-    $form['info_note']['icon'] = [
-      '#theme' => 'image',
-      '#uri' => base_path() . $module_path . '/images/icon-info.svg',
-      '#alt' => $this->t('Info'),
-      '#prefix' => '<div class="cloudflare-purge-info-note__icon">',
-      '#suffix' => '</div>',
-    ];
-
-    $form['info_note']['text'] = [
-      '#markup' => '<div class="cloudflare-purge-info-note__text">' .
-      $this->t(
-          '<strong>Note:</strong> When storing credentials in <code>settings.php</code>, you must provide a <strong>complete set</strong> of credentials (zone_id + bearer_token OR zone_id + email + authorization). When complete credentials are found in settings.php, this form will be disabled.'
-      ) . '</div>',
-    ];
 
     // ========== TWO COLUMN LAYOUT ==========
     $form['layout'] = [
       '#type' => 'container',
-      '#attributes' => ['class' => ['cloudflare-purge-layout']],
+      '#attributes' => ['class' => ['cloudflare-purge-layout', 'cfp-layout']],
     ];
 
     // ========== LEFT COLUMN: Configuration Options ==========
     $form['layout']['left'] = [
       '#type' => 'fieldset',
-      '#title' => $this->t('Configuration'),
-      '#attributes' => ['class' => ['cloudflare-purge-config-panel']],
+      '#title' => $this->t('How you sign in'),
+      '#description' => $this->t('Pick the authentication method and where the secret is kept.'),
+      '#attributes' => ['class' => ['cloudflare-purge-config-panel', 'cfp-section', 'cfp-section--signin']],
     ];
 
     // Authentication Method (in left column)
     $form['layout']['left']['auth_method'] = [
       '#type' => 'radios',
-      '#title' => '<img src="' . base_path() . $module_path . '/images/icon-auth.svg" alt="" class="fieldset-icon"> ' . $this->t('Authentication Method'),
+      '#title' => $this->t('Authentication Method'),
       '#options' => [
         CloudflarePurgeSettings::AUTH_BEARER => $this->t('Bearer Token'),
         CloudflarePurgeSettings::AUTH_LEGACY => $this->t('Legacy API Key/Email'),
       ],
       '#default_value' => $auth_method,
-      '#description' => $this->t('Choose your authentication method. Bearer Token is recommended.'),
+      '#description' => $this->t('Bearer Token is recommended: a scoped API token. Legacy mode uses the global API key and account email.'),
       '#attributes' => ['class' => ['cloudflare-purge-radios']],
     ];
 
     // Storage Method (in left column)
     $storage_options = [
-      CloudflarePurgeSettings::STORAGE_PLAIN => $this->t('Plain text input'),
+      CloudflarePurgeSettings::STORAGE_PLAIN => $this->t('In the database (plain text)'),
     ];
 
     if ($this->moduleHandler->moduleExists('key')) {
-      $storage_options[CloudflarePurgeSettings::STORAGE_KEY] = $this->t('Secure key input');
+      $storage_options[CloudflarePurgeSettings::STORAGE_KEY] = $this->t('Key module');
     }
 
     $form['layout']['left']['storage_method'] = [
       '#type' => 'radios',
-      '#title' => '<img src="' . base_path() . $module_path . '/images/icon-storage.svg" alt="" class="fieldset-icon"> ' . $this->t('Storage Method'),
+      '#title' => $this->t('Storage Method'),
       '#options' => $storage_options,
       '#default_value' => $storage_method,
       '#description' => $this->t('Choose how to store your credentials.'),
@@ -268,7 +226,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     // Security warning for plain text storage.
     $form['layout']['left']['plain_text_warning'] = [
       '#type' => 'markup',
-      '#markup' => '<div class="messages messages--warning">' .
+      '#markup' => '<div class="cfp-callout cfp-callout--warning" role="note">' .
       '<strong>' . $this->t('Security Warning:') . '</strong> ' .
       $this->t('Plain text storage saves credentials in the database. For production environments, use settings.php override or the Key module for secure storage.') .
       '</div>',
@@ -281,7 +239,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
     if (!$this->moduleHandler->moduleExists('key')) {
       $form['layout']['left']['key_module_notice'] = [
-        '#markup' => '<div class="cloudflare-purge-notice">' .
+        '#markup' => '<div class="cfp-callout cfp-callout--info cloudflare-purge-notice" role="note">' .
         $this->t('Install the <a href="@url" target="_blank">Key module</a> to enable secure credential storage.', [
           '@url' => 'https://www.drupal.org/project/key',
         ]) . '</div>',
@@ -291,8 +249,9 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     // ========== RIGHT COLUMN: Credentials ==========
     $form['layout']['right'] = [
       '#type' => 'fieldset',
-      '#title' => '<img src="' . base_path() . $module_path . '/images/icon-credentials.svg" alt="" class="fieldset-icon"> ' . $this->t('Credentials'),
-      '#attributes' => ['class' => ['cloudflare-purge-credentials-panel']],
+      '#title' => $this->t('Cloudflare zone and token'),
+      '#description' => $this->t('When storing credentials in <code>settings.php</code>, provide a complete set (zone_id + bearer_token, or zone_id + email + authorization); this form is then disabled.'),
+      '#attributes' => ['class' => ['cloudflare-purge-credentials-panel', 'cfp-section', 'cfp-section--zone']],
     ];
 
     // Zone ID - Plain text.
@@ -330,30 +289,32 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       ];
     }
 
-    // Bearer Token - Plain text.
+    // Bearer Token - Plain text. Secret fields never send the saved value
+    // back to the browser; a blank field on save keeps the saved value.
+    $has_bearer = (string) ($config->get('bearer_token') ?? '') !== '';
+    $bearer_when = [
+      ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_BEARER],
+      ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
+    ];
     $form['layout']['right']['bearer_token'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Bearer Token'),
+      '#type' => 'password',
+      '#title' => $this->t('API token'),
       '#size' => 60,
-      '#default_value' => $config->get('bearer_token'),
-      '#description' => $this->t('Enter your Cloudflare Bearer Token (API Token).'),
-      '#states' => [
-        'visible' => [
-          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_BEARER],
-          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
-        ],
-        'required' => [
-          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_BEARER],
-          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
-        ],
+      '#attributes' => [
+        'autocomplete' => 'new-password',
+        'placeholder' => $has_bearer ? $this->t('Saved. Leave blank to keep it.') : '',
       ],
+      '#description' => $has_bearer
+        ? $this->t('A token is saved and hidden. Enter a new one only to replace it.')
+        : $this->t('Enter your Cloudflare Bearer Token (API Token).'),
+      '#states' => ['visible' => $bearer_when] + ($has_bearer ? [] : ['required' => $bearer_when]),
     ];
 
     // Bearer Token - Key module.
     if ($this->moduleHandler->moduleExists('key')) {
       $form['layout']['right']['bearer_token_key'] = [
         '#type' => 'key_select',
-        '#title' => $this->t('Bearer Token'),
+        '#title' => $this->t('API token'),
         '#default_value' => $config->get('bearer_token_key'),
         '#description' => $this->t('Select the key containing your Cloudflare Bearer Token.'),
         '#states' => [
@@ -372,7 +333,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     // Email - Plain text.
     $form['layout']['right']['email'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('Email'),
+      '#title' => $this->t('Account email'),
       '#size' => 60,
       '#default_value' => $config->get('email'),
       '#description' => $this->t('Enter your Cloudflare account email address.'),
@@ -392,7 +353,7 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     if ($this->moduleHandler->moduleExists('key')) {
       $form['layout']['right']['email_key'] = [
         '#type' => 'key_select',
-        '#title' => $this->t('Email'),
+        '#title' => $this->t('Account email'),
         '#default_value' => $config->get('email_key'),
         '#description' => $this->t('Select the key containing your Cloudflare email.'),
         '#states' => [
@@ -408,30 +369,31 @@ final class CloudflarePurgeForm extends ConfigFormBase {
       ];
     }
 
-    // Authorization - Plain text.
+    // Authorization - Plain text. Secret: never sent back to the browser.
+    $has_authorization = (string) ($config->get('authorization') ?? '') !== '';
+    $authorization_when = [
+      ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
+      ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
+    ];
     $form['layout']['right']['authorization'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('API Key'),
+      '#type' => 'password',
+      '#title' => $this->t('Global API key'),
       '#size' => 60,
-      '#default_value' => $config->get('authorization'),
-      '#description' => $this->t('Enter your Cloudflare Global API Key.'),
-      '#states' => [
-        'visible' => [
-          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
-          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
-        ],
-        'required' => [
-          ':input[name="auth_method"]' => ['value' => CloudflarePurgeSettings::AUTH_LEGACY],
-          ':input[name="storage_method"]' => ['value' => CloudflarePurgeSettings::STORAGE_PLAIN],
-        ],
+      '#attributes' => [
+        'autocomplete' => 'new-password',
+        'placeholder' => $has_authorization ? $this->t('Saved. Leave blank to keep it.') : '',
       ],
+      '#description' => $has_authorization
+        ? $this->t('A key is saved and hidden. Enter a new one only to replace it.')
+        : $this->t('Enter your Cloudflare Global API Key.'),
+      '#states' => ['visible' => $authorization_when] + ($has_authorization ? [] : ['required' => $authorization_when]),
     ];
 
     // Authorization - Key module.
     if ($this->moduleHandler->moduleExists('key')) {
       $form['layout']['right']['authorization_key'] = [
         '#type' => 'key_select',
-        '#title' => $this->t('API Key'),
+        '#title' => $this->t('Global API key'),
         '#default_value' => $config->get('authorization_key'),
         '#description' => $this->t('Select the key containing your Cloudflare API Key.'),
         '#states' => [
@@ -462,6 +424,18 @@ final class CloudflarePurgeForm extends ConfigFormBase {
     }
 
     $storage_method = $form_state->getValue('storage_method');
+
+    // The secret fields are blank on every page load, so require one only
+    // when nothing is saved for it yet (the #states rule needs JavaScript).
+    if ($storage_method === CloudflarePurgeSettings::STORAGE_PLAIN) {
+      $secret = $form_state->getValue('auth_method') === CloudflarePurgeSettings::AUTH_BEARER ? 'bearer_token' : 'authorization';
+      $saved = (string) ($this->config(CloudflarePurgeSettings::NAME)->get($secret) ?? '');
+      if (trim((string) $form_state->getValue($secret)) === '' && $saved === '') {
+        $form_state->setErrorByName($secret, $secret === 'bearer_token'
+          ? $this->t('API token is required.')
+          : $this->t('Global API key is required.'));
+      }
+    }
 
     // Validate Zone ID format (only for plain text storage).
     if ($storage_method === CloudflarePurgeSettings::STORAGE_PLAIN) {
@@ -517,8 +491,15 @@ final class CloudflarePurgeForm extends ConfigFormBase {
         $config->clear($field);
       }
       else {
-        // Get value from plain field.
+        // Get value from plain field. A blank secret field keeps the saved
+        // secret, because the form never shows it.
         $value = $form_state->getValue($field);
+        $is_secret = in_array($field, ['bearer_token', 'authorization'], TRUE);
+        if ($is_secret) {
+          // Trim a pasted trailing newline; blank keeps the saved secret.
+          $value = trim((string) $value);
+          $value = $value === '' ? NULL : $value;
+        }
         if ($value !== NULL) {
           $config->set($field, $value);
         }
@@ -562,13 +543,12 @@ final class CloudflarePurgeForm extends ConfigFormBase {
 
     $form['override_message'] = [
       '#type' => 'container',
-      '#attributes' => ['class' => ['messages', 'messages--warning']],
+      '#attributes' => ['class' => ['cfp-locked'], 'role' => 'note'],
     ];
 
-    // Wrap content in a div to prevent flexbox layout issues (e.g., Gin theme).
     $form['override_message']['content'] = [
       '#markup' => '<div class="cloudflare-purge-override-message">' .
-      '<p><strong>' . $this->t('Configuration Override Detected') . '</strong></p>' .
+      '<p class="cfp-locked__title">' . $this->t('Managed in settings.php') . '</p>' .
       '<p>' . $this->t('Your Cloudflare credentials are currently managed via <code>settings.php</code>. This is the recommended approach for production environments.') . '</p>' .
       '<p><strong>' . $this->t('Detected configuration:') . '</strong> ' . $auth_type . '</p>' .
       '<p>' . $this->t('To modify credentials, update the <code>$settings["cloudflare_purge_credentials"]</code> array in your <code>settings.php</code> file.') . '</p>' .

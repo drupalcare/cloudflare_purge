@@ -1,55 +1,185 @@
 /**
- * Cloudflare Purge in-page navigation (quick links / tabs).
- * Horizontal tab-style strip printed at the top of every module page.
- *
- * Theme-agnostic: no background or text colors are set, so the links inherit
- * the admin theme's palette (works in both light and dark themes). The only
- * accent is an orange underline marking the active and hovered tab.
+ * Cloudflare Purge console: header band, grouped navigation.
+ * Admin theme owns colours; this file forces layout only. Brand orange is a
+ * thin border or icon colour (decorative), never a surface or text colour.
  */
-
-.cloudflare-purge-tabs-wrapper {
-  margin: 0 0 1.5rem;
+.cfp-console {
+  --cfp-brand: #f38020;
+  --cfp-line: color-mix(in srgb, currentColor 18%, transparent);
+  --cfp-radius: 0.5rem;
+  box-sizing: border-box;
+  display: grid;
+  gap: 1rem;
+  margin-block: 0 1.5rem;
+  max-inline-size: 100%;
 }
 
-ul.cloudflare-purge-tabs {
+.cfp-console *,
+.cfp-console *::before,
+.cfp-console *::after {
+  box-sizing: border-box;
+}
+
+.cfp-band {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
   margin: 0;
-  padding: 0;
-  list-style: none;
-  /* Neutral, semi-transparent divider that reads on light and dark themes. */
-  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--cfp-line);
+  border-inline-start: 4px solid var(--cfp-brand);
+  border-radius: var(--cfp-radius);
 }
 
-.cloudflare-purge-tabs__item {
+.cfp-band__name {
   margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.cloudflare-purge-tabs__link {
-  display: inline-block;
-  padding: 0.4rem 0.6rem;
-  /* Transparent border keeps the layout stable when the active/hover
-     underline appears. Inherit color and background from the admin theme. */
-  border-bottom: 3px solid transparent;
-  margin-bottom: -1px;
-  font-size: 0.9rem;
+  font-size: 1.375rem;
+  font-weight: 650;
   line-height: 1.2;
-  text-decoration: none;
-  color: inherit;
+}
+
+.cfp-band__purpose {
+  flex: 1 1 18rem;
+  margin: 0;
+  opacity: 0.8;
+}
+
+.cfp-band__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cfp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0.125rem 0.625rem;
+  border: 1px solid var(--cfp-line);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
   white-space: nowrap;
 }
 
-.cloudflare-purge-tabs__link:hover,
-.cloudflare-purge-tabs__link:focus {
-  border-bottom-color: #f38020;
-  color: inherit;
+.cfp-chip::before {
+  content: "";
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
 }
 
-.cloudflare-purge-tabs__item.is-active .cloudflare-purge-tabs__link {
-  border-bottom-color: #f38020;
-  font-weight: 700;
-  cursor: default;
+.cfp-chip--on::before {
+  background: var(--cfp-brand);
+  opacity: 1;
+}
+
+.cfp-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+}
+
+.cfp-nav .cloudflare-purge-tabs-group {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+}
+
+.cfp-nav .cloudflare-purge-tabs-group > h3 {
+  margin: 0 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.cfp-nav .cloudflare-purge-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cfp-nav .cloudflare-purge-tabs__item {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cfp-nav .cloudflare-purge-tabs__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-block-size: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid transparent;
+  border-block-end: 3px solid transparent;
+  border-radius: 0.375rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cfp-nav a.cloudflare-purge-tabs__link:hover {
+  border-color: var(--cfp-line);
+  border-block-end-color: var(--cfp-brand);
+}
+
+.cfp-nav .cloudflare-purge-tabs__link.is-active {
+  border-color: var(--cfp-line);
+  border-block-end-color: var(--cfp-brand);
+  font-weight: 600;
+}
+
+.cfp-nav .cloudflare-purge-tabs__link::before {
+  content: "";
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  background-color: var(--cfp-brand);
+  mask: var(--cfp-icon, none) center / contain no-repeat;
+}
+
+.cfp-nav .cloudflare-purge-tabs__link.is-danger::before {
+  background-color: currentColor;
+}
+
+.cfp-nav .cloudflare-purge-tabs__link.is-danger {
+  border-block-end-color: currentColor;
+  opacity: 0.9;
+}
+
+.cfp-nav .cfp-icon--bar_chart { --cfp-icon: url("../images/icons/bar_chart.svg"); }
+.cfp-nav .cfp-icon--delete_forever { --cfp-icon: url("../images/icons/delete_forever.svg"); }
+.cfp-nav .cfp-icon--dns { --cfp-icon: url("../images/icons/dns.svg"); }
+.cfp-nav .cfp-icon--folder { --cfp-icon: url("../images/icons/folder.svg"); }
+.cfp-nav .cfp-icon--history { --cfp-icon: url("../images/icons/history.svg"); }
+.cfp-nav .cfp-icon--key { --cfp-icon: url("../images/icons/key.svg"); }
+.cfp-nav .cfp-icon--label { --cfp-icon: url("../images/icons/label.svg"); }
+.cfp-nav .cfp-icon--link { --cfp-icon: url("../images/icons/link.svg"); }
+.cfp-nav .cfp-icon--schedule { --cfp-icon: url("../images/icons/schedule.svg"); }
+.cfp-nav .cfp-icon--tune { --cfp-icon: url("../images/icons/tune.svg"); }
+
+@media (max-width: 30rem) {
+  .cfp-nav {
+    flex-direction: column;
+  }
+
+  .cfp-nav .cloudflare-purge-tabs {
+    flex-direction: column;
+  }
+
+  .cfp-nav .cloudflare-purge-tabs__link {
+    inline-size: 100%;
+  }
 }

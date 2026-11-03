@@ -68,6 +68,8 @@ final class CloudflarePurgeByHostname extends FormBase {
     $form['#attached']['library'][] = 'cloudflare_purge/navigation';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
     $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
+    $form['#attributes']['class'][] = 'cfp-purge';
+    $form['cfp_scope'] = CloudflarePurgeLinks::scope('hostname');
 
     $form['description'] = [
       '#type' => 'markup',
@@ -78,7 +80,7 @@ final class CloudflarePurgeByHostname extends FormBase {
 
     $form['warning'] = [
       '#type' => 'markup',
-      '#markup' => '<div class="messages messages--warning">' .
+      '#markup' => '<div class="cfp-callout cfp-callout--warning" role="note">' .
       '<strong>' . $this->t('Warning:') . '</strong> ' .
       $this->t('Purging by hostname will invalidate ALL cached content for that hostname. This can significantly increase load on your origin server. Available on all Cloudflare plans (Free tier: 5 requests/minute).') .
       '</div>',

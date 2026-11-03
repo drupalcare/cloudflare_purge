@@ -1,595 +1,324 @@
 /**
- * Cloudflare Purge Form Styles
- * Subtle integration with admin theme + Cloudflare orange accents
+ * Cloudflare Purge forms. Layout is forced here; colours come from the admin
+ * theme (inherit / currentColor). Brand orange appears only as a thin border
+ * or an icon colour.
  */
+.cloudflare-purge-form {
+  --cfp-brand: #f38020;
+  --cfp-line: color-mix(in srgb, currentColor 18%, transparent);
+  --cfp-radius: 0.5rem;
+  box-sizing: border-box;
+  max-inline-size: 72rem;
+  container: cfp / inline-size;
+}
 
-/* ========== HEADER SECTION ========== */
-.cloudflare-purge-header {
+.cloudflare-purge-form *,
+.cloudflare-purge-form *::before,
+.cloudflare-purge-form *::after {
+  box-sizing: border-box;
+}
+
+.cloudflare-purge-form .form-item {
+  margin-block: 0;
+}
+
+.cloudflare-purge-form .form-item,
+.cloudflare-purge-form .form-wrapper {
+  min-inline-size: 0;
+}
+
+.cloudflare-purge-form .description,
+.cloudflare-purge-form .form-item__description,
+.cloudflare-purge-form :is(.details__description, .claro-details__description) {
+  inline-size: 100%;
+  max-inline-size: none;
+  margin-block: 0.25rem 0;
+  opacity: 0.8;
+}
+
+/* Sections. */
+.cloudflare-purge-form .cfp-section {
+  min-inline-size: 0;
+  margin: 0 0 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--cfp-line);
+  border-inline-start: 4px solid var(--cfp-brand);
+  border-radius: var(--cfp-radius);
+  box-shadow: none;
+}
+
+.cloudflare-purge-form fieldset.cfp-section > legend {
+  float: none;
+  padding: 0 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 650;
+}
+
+.cloudflare-purge-form .cfp-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cloudflare-purge-form .cfp-layout > .cfp-section {
+  margin: 0;
+}
+
+@container cfp (min-width: 64rem) {
+  .cloudflare-purge-form .cfp-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Choice cards: radios. */
+.cloudflare-purge-form .form-radios {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.cloudflare-purge-form .form-radios .form-type-radio,
+.cloudflare-purge-form .form-radios .form-type--radio {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  border: 1px solid #ddd;
-  border-left: 4px solid #F38020;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-}
-
-.cloudflare-purge-header__logo img {
-  height: 48px;
-  width: auto;
-  display: block;
-}
-
-.cloudflare-purge-header__content h2 {
-  margin: 0 0 0.25rem 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.cloudflare-purge-header__content p {
+  gap: 0.5rem;
   margin: 0;
-  font-size: 0.95rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--cfp-line);
+  border-radius: var(--cfp-radius);
 }
 
-/* Mobile: Stack header vertically */
-@media (max-width: 767px) {
-  .cloudflare-purge-header {
-    flex-direction: column;
-    text-align: center;
-  }
+.cloudflare-purge-form .form-radios .form-type-radio:has(input:checked),
+.cloudflare-purge-form .form-radios .form-type--radio:has(input:checked) {
+  border-color: currentColor;
+  border-inline-start: 4px solid var(--cfp-brand);
 }
 
-/* ========== INFO NOTE ========== */
-.cloudflare-purge-info-note {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  padding: 1rem 1.25rem;
-  border-left: 3px solid #F38020;
-  border-radius: 3px;
-  margin-bottom: 1.5rem;
-}
-
-.cloudflare-purge-info-note__icon img {
-  height: 20px;
-  width: 20px;
-  opacity: 0.7;
-  margin-top: 2px;
-}
-
-.cloudflare-purge-info-note__text {
-  flex: 1;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-/* Mobile: Stack note vertically */
-@media (max-width: 767px) {
-  .cloudflare-purge-info-note {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-}
-
-/* ========== TWO COLUMN LAYOUT ========== */
-.cloudflare-purge-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-/* Desktop: Two columns */
-@media (min-width: 768px) {
-  .cloudflare-purge-layout {
-    grid-template-columns: 300px 1fr;
-  }
-}
-
-@media (min-width: 1200px) {
-  .cloudflare-purge-layout {
-    grid-template-columns: 450px 1fr;
-  }
-}
-
-/* ========== LEFT PANEL: Configuration ========== */
-.cloudflare-purge-config-panel {
-  padding: 1.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.cloudflare-purge-config-panel legend {
-  font-weight: 600;
-  font-size: 1.1rem;
-  padding: 0 0.5rem;
-}
-
-/* Radio groups spacing */
-.cloudflare-purge-config-panel .form-radios {
-  margin-top: 0.5rem;
-}
-
-/* Radio labels with icons */
-.cloudflare-purge-config-panel .form-radios .form-type-radio {
-  margin-bottom: 0.75rem;
-}
-
-.cloudflare-purge-config-panel .form-radios label {
-  font-weight: 500;
-  padding-left: 0.25rem;
-}
-
-/* Section titles with icons */
-.fieldset-icon {
-  height: 20px;
-  width: 20px;
-  vertical-align: middle;
-  margin-right: 0.5rem;
-  opacity: 0.7;
-}
-
-/* Highlight first option (recommended) with Cloudflare color */
-.cloudflare-purge-config-panel .form-radios .form-type-radio:first-child label::after {
-  content: " (recommended)";
-  color: #F38020;
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-/* Section descriptions */
-.cloudflare-purge-config-panel .description {
-  font-size: 0.85rem;
-  color: #666;
-  margin-top: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-/* Key module notice */
-.cloudflare-purge-notice {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border-left: 3px solid #F38020;
-  font-size: 0.85rem;
-  border-radius: 3px;
-}
-
-.cloudflare-purge-notice a {
-  color: #F38020;
-  text-decoration: underline;
-}
-
-/* ========== RIGHT PANEL: Credentials ========== */
-.cloudflare-purge-credentials-panel {
-  padding: 1.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  min-height: 300px;
-}
-
-.cloudflare-purge-credentials-panel legend {
-  font-weight: 600;
-  font-size: 1.1rem;
-  padding: 0 0.5rem;
-}
-
-/* Form items spacing */
-.cloudflare-purge-credentials-panel .form-item {
-  margin-bottom: 1.25rem;
-}
-
-.cloudflare-purge-credentials-panel label {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  display: block;
-}
-
-.cloudflare-purge-credentials-panel .description {
-  font-size: 0.85rem;
-  color: #666;
-  margin-top: 0.25rem;
-}
-
-/* Input fields */
-.cloudflare-purge-credentials-panel input[type="text"],
-.cloudflare-purge-credentials-panel select {
-  width: 100%;
-  max-width: 100%;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.95rem;
-  border-radius: 3px;
-}
-
-/* Focus state with Cloudflare orange accent */
-.cloudflare-purge-credentials-panel input[type="text"]:focus,
-.cloudflare-purge-credentials-panel select:focus {
-  border-color: #F38020;
-  outline: none;
-  box-shadow: 0 0 0 1px #F38020;
-}
-
-/* ========== SUBMIT BUTTON ========== */
-.cloudflare-purge-form .form-actions {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #ddd;
-}
-
-/* Subtle Cloudflare orange on primary button */
-.cloudflare-purge-form .form-actions .button--primary {
-  border-color: #F38020;
-}
-
-.cloudflare-purge-form .form-actions .button--primary:hover,
-.cloudflare-purge-form .form-actions .button--primary:focus {
-  border-color: #E06E15;
-}
-
-/* ========== PURGE FORMS (URL, Tag, Prefix, Hostname, Batch) ========== */
-
-/* Description paragraph at top of purge forms */
-.cloudflare-purge-form > p:first-of-type {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  padding: 1rem 1.25rem;
-  border-left: 3px solid #F38020;
-  border-radius: 3px;
-}
-
-/* Textarea styling for batch inputs */
-.cloudflare-purge-form textarea {
-  width: 100%;
-  max-width: 100%;
-  padding: 0.75rem;
-  font-size: 0.95rem;
-  font-family: inherit;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  resize: vertical;
-  min-height: 150px;
-}
-
-.cloudflare-purge-form textarea:focus {
-  border-color: #F38020;
-  outline: none;
-  box-shadow: 0 0 0 1px #F38020;
-}
-
-.cloudflare-purge-form textarea::placeholder {
-  color: #999;
-  font-style: italic;
-  font-size: 0.9rem;
-}
-
-/* Text input for single URL purge */
-.cloudflare-purge-form input[type="text"] {
-  width: 100%;
-  max-width: 100%;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.95rem;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-}
-
-.cloudflare-purge-form input[type="text"]:focus {
-  border-color: #F38020;
-  outline: none;
-  box-shadow: 0 0 0 1px #F38020;
-}
-
-/* Number input for settings */
-.cloudflare-purge-form input[type="number"] {
-  width: auto;
-  min-width: 100px;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.95rem;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-}
-
-.cloudflare-purge-form input[type="number"]:focus {
-  border-color: #F38020;
-  outline: none;
-  box-shadow: 0 0 0 1px #F38020;
-}
-
-/* Form item labels */
-.cloudflare-purge-form .form-item label {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  display: block;
-}
-
-/* Form item descriptions */
-.cloudflare-purge-form .form-item .description {
-  font-size: 0.85rem;
-  color: #666;
-  margin-top: 0.25rem;
-  line-height: 1.5;
-}
-
-/* ========== DETAILS/COLLAPSIBLE SECTIONS ========== */
-.cloudflare-purge-form details summary::-webkit-details-marker {
-  display: none;
-}
-
-.cloudflare-purge-form details summary::before,
-.cloudflare-purge-form details summary:hover {
-  color: #F38020;
-}
-
-.cloudflare-purge-form details summary:focus {
-  outline: none;
-}
-
-.cloudflare-purge-form details summary:focus-visible {
-  outline: 2px solid #F38020;
-  outline-offset: 2px;
-}
-
-.cloudflare-purge-form details[open] summary {
-  border-bottom: 1px solid #ddd;
-}
-
-
-/* Details content lists */
-.cloudflare-purge-form details ul {
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
-}
-
-.cloudflare-purge-form details li {
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-/* ========== CODE STYLING ========== */
-.cloudflare-purge-form code {
-  background-color: #f4f4f4;
-  padding: 0.125rem 0.375rem;
-  border-radius: 3px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 0.85em;
-  color: #333;
-}
-
-.cloudflare-purge-form pre {
-  background-color: #2d2d2d;
-  color: #f8f8f2;
-  padding: 1rem;
-  border-radius: 4px;
-  overflow-x: auto;
-  font-size: 0.85rem;
-  margin: 1rem 0;
-}
-
-.cloudflare-purge-form pre code {
-  background: none;
-  padding: 0;
-  color: inherit;
-}
-
-/* ========== WARNING MESSAGES IN FORMS ========== */
-.cloudflare-purge-form .messages--warning {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 1rem 1.25rem;
-  border: 1px solid #ffc107;
-  border-left: 4px solid #ffc107;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-/* Override message wrapper - prevent flexbox breaking content (Gin theme fix) */
-.cloudflare-purge-override-message {
-  flex: 1;
-  width: 100%;
-}
-
-.cloudflare-purge-override-message p {
-  margin: 0 0 0.75rem 0;
-}
-
-.cloudflare-purge-override-message p:last-child {
-  margin-bottom: 0;
-}
-
-.cloudflare-purge-override-message code {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 0.125rem 0.375rem;
-  border-radius: 3px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  font-size: 0.85em;
-}
-
-/* ========== SETTINGS FORM SPECIFICS ========== */
-
-/* Checkboxes in settings */
-.cloudflare-purge-form .form-type-checkbox {
-  margin-bottom: 1rem;
-}
-
-.cloudflare-purge-form .form-type-checkbox label {
-  font-weight: 500;
+.cloudflare-purge-form .form-radios label {
+  margin: 0;
   cursor: pointer;
 }
 
-/* Checkbox group (entity types) */
+/* Control beside its text. Claro offsets the boolean item and its input
+   (claro/css/components/form--checkbox-radio.css:17-31: margin-inline-start,
+   position relative, inset-block-start, float, negative margin, translate). */
+.cloudflare-purge-form .form-radios :is(.form-type-radio, .form-type--radio) {
+  margin-inline-start: 0;
+  line-height: 1.4;
+}
+
+.cloudflare-purge-form .form-radios :is(.form-type-radio, .form-type--radio) > input {
+  flex: none;
+  position: static;
+  inset: auto;
+  float: none;
+  margin: 0;
+  transform: none;
+}
+
+/* Inputs: width and mono secrets only; colours stay the theme's. */
+.cloudflare-purge-form :is(input[type="text"], input[type="number"], textarea, select) {
+  inline-size: 100%;
+  max-inline-size: none;
+}
+
+.cloudflare-purge-form :is(input[name="zone_id"], input[name="bearer_token"], input[name="authorization"], input[name="email"], textarea) {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.cloudflare-purge-form .cfp-section--zone .form-item {
+  margin-block-end: 1rem;
+}
+
 .cloudflare-purge-form .form-checkboxes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.25rem 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+}
+
+.cloudflare-purge-form code {
+  padding: 0 0.25rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.cloudflare-purge-form pre {
+  overflow-x: auto;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cfp-line);
+  border-radius: var(--cfp-radius);
+}
+
+/* Callouts (replace core .messages markup). */
+.cloudflare-purge-form .cfp-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin: 0.75rem 0;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--cfp-line);
+  border-inline-start: 4px solid var(--cfp-brand);
+  border-radius: var(--cfp-radius);
+}
+
+.cloudflare-purge-form .cfp-callout::before {
+  content: "";
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-block-start: 0.125rem;
+  background-color: var(--cfp-brand);
+  mask: url("../images/icons/info.svg") center / contain no-repeat;
+}
+
+.cloudflare-purge-form .cfp-callout--warning::before {
+  mask-image: url("../images/icons/warning.svg");
+}
+
+/* Locked (settings.php) panel. */
+.cloudflare-purge-form .cfp-locked {
+  margin: 0 0 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--cfp-line);
+  border-inline-start: 4px solid var(--cfp-brand);
+  border-radius: var(--cfp-radius);
+}
+
+.cloudflare-purge-form .cfp-locked__title {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 650;
 }
 
-.cloudflare-purge-form .form-checkboxes .form-type-checkbox {
-  margin-bottom: 0.5rem;
+.cloudflare-purge-form .cfp-locked__title::before {
+  content: "";
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  background-color: var(--cfp-brand);
+  mask: url("../images/icons/lock.svg") center / contain no-repeat;
 }
 
-/* Settings fieldset styling */
-.cloudflare-purge-form fieldset {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+/* Auto-purge settings: details head, hint, state chip. */
+.cloudflare-purge-form details.cfp-section > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.cloudflare-purge-form fieldset legend {
+.cloudflare-purge-form .cfp-head {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.cloudflare-purge-form .cfp-head__name {
+  font-weight: 650;
+}
+
+.cloudflare-purge-form .cfp-head__hint {
+  font-size: 0.8125rem;
+  opacity: 0.75;
+}
+
+.cloudflare-purge-form .cfp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--cfp-line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.cloudflare-purge-form .cfp-chip--on {
+  border-inline-start: 3px solid var(--cfp-brand);
+}
+
+/* Scope meter on purge pages. */
+.cloudflare-purge-form .cfp-scope {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.cloudflare-purge-form .cfp-meter {
+  display: inline-grid;
+  gap: 3px;
+  grid-template-columns: repeat(5, 1.5rem);
+}
+
+.cloudflare-purge-form .cfp-meter__seg {
+  block-size: 0.5rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.cloudflare-purge-form .cfp-meter__seg.is-on {
+  background: var(--cfp-brand);
+}
+
+.cloudflare-purge-form .cfp-scope__text {
+  font-size: 0.875rem;
   font-weight: 600;
-  font-size: 1.1rem;
-  padding: 0 0.5rem;
 }
 
-/* Settings details sections */
-.cloudflare-purge-form .form-wrapper.form-group {
-  margin-bottom: 1.5rem;
+/* Purge Everything: danger look is the theme's button--danger plus a rule. */
+.cloudflare-purge-form .cfp-scope--everything .cfp-scope__text {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
 }
 
-/* ========== HISTORY TABLE ========== */
+/* Queued tags: table rows as stat tiles. */
+.cloudflare-purge-form table.cfp-stats,
+.cloudflare-purge-form .cfp-stats table {
+  inline-size: 100%;
+}
+
+/* History badges: neutral text, colour only as a thin border. */
 .cloudflare-purge-history table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
+  inline-size: 100%;
 }
 
-.cloudflare-purge-history th,
-.cloudflare-purge-history td {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-.cloudflare-purge-history th {
-  font-weight: 600;
-  border-bottom: 2px solid #ddd;
-}
-
-.cloudflare-purge-history tr:hover {
-  background-color: #f9f9f9;
-}
-
-/* Purge type badges */
 .cloudflare-purge-history .purge-type {
   display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  font-weight: 500;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid var(--cfp-line, currentColor);
+  border-inline-start: 3px solid var(--cfp-brand, currentColor);
+  border-radius: 0.25rem;
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
 }
 
 .cloudflare-purge-history .purge-type--everything {
-  background-color: #ffebee;
-  color: #c62828;
+  border-inline-start-color: currentColor;
+  font-weight: 650;
 }
 
-.cloudflare-purge-history .purge-type--url {
-  background-color: #e3f2fd;
-  color: #1565c0;
-}
-
-.cloudflare-purge-history .purge-type--tag {
-  background-color: #f3e5f5;
-  color: #7b1fa2;
-}
-
-.cloudflare-purge-history .purge-type--prefix {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.cloudflare-purge-history .purge-type--hostname {
-  background-color: #fff3e0;
-  color: #e65100;
-}
-
-/* ========== RESPONSIVE ADJUSTMENTS ========== */
-
-/* Tablet and below: Stack columns */
-@media (max-width: 767px) {
-  .cloudflare-purge-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .cloudflare-purge-config-panel,
-  .cloudflare-purge-credentials-panel {
-    min-height: auto;
-  }
-
-  .cloudflare-purge-form .form-checkboxes {
-    grid-template-columns: 1fr;
-  }
-
-  .cloudflare-purge-history table {
-    font-size: 0.85rem;
-  }
-
-  .cloudflare-purge-history th,
+@media (max-width: 47.9375rem) {
+  .cloudflare-purge-history table,
+  .cloudflare-purge-history tbody,
+  .cloudflare-purge-history tr,
   .cloudflare-purge-history td {
-    padding: 0.5rem;
+    display: block;
+  }
+
+  .cloudflare-purge-history thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
 }
 
-/* ========== ACCESSIBILITY ========== */
-
-/* Focus visible for keyboard navigation */
-.cloudflare-purge-config-panel .form-radio:focus-visible + label,
-.cloudflare-purge-credentials-panel input:focus-visible,
-.cloudflare-purge-form textarea:focus-visible,
-.cloudflare-purge-form input[type="text"]:focus-visible,
-.cloudflare-purge-form input[type="number"]:focus-visible,
-.cloudflare-purge-form select:focus-visible {
-  outline: 2px solid #F38020;
-  outline-offset: 2px;
-}
-
-/* Checkbox focus */
-.cloudflare-purge-form .form-checkbox:focus-visible + label {
-  outline: 2px solid #F38020;
-  outline-offset: 2px;
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .cloudflare-purge-header {
-    border-width: 2px;
-  }
-
-  .cloudflare-purge-info-note {
-    border-width: 4px;
-  }
-
-  .cloudflare-purge-form details {
-    border-width: 2px;
-  }
-
-  .cloudflare-purge-form code {
-    border: 1px solid #333;
-  }
-}
-
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-  .cloudflare-purge-credentials-panel input,
-  .cloudflare-purge-form .button--primary,
-  .cloudflare-purge-form details summary::before {
+  .cloudflare-purge-form * {
     transition: none;
-  }
-}
-
-/* ========== DARK MODE SUPPORT (if theme supports it) ========== */
-@media (prefers-color-scheme: dark) {
-  .cloudflare-purge-form code {
-    background-color: #333;
-    color: #f8f8f2;
-  }
-
-  .cloudflare-purge-form textarea::placeholder {
-    color: #777;
+    animation: none;
   }
 }

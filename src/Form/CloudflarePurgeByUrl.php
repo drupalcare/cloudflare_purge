@@ -62,6 +62,8 @@ final class CloudflarePurgeByUrl extends FormBase {
     $form['#attached']['library'][] = 'cloudflare_purge/navigation';
     $form['#attributes']['class'][] = 'cloudflare-purge-form';
     $form['cloudflare_purge_nav'] = CloudflarePurgeLinks::build($this->getRouteMatch()->getRouteName());
+    $form['#attributes']['class'][] = 'cfp-purge';
+    $form['cfp_scope'] = CloudflarePurgeLinks::scope('url');
 
     $form['description'] = [
       '#type' => 'markup',
