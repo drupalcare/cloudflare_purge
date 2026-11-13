@@ -34,10 +34,22 @@
 }
 
 .cfp-band__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
   margin: 0;
   font-size: 1.375rem;
   font-weight: 650;
   line-height: 1.2;
+}
+
+/* The Cloudflare Purge logo sits before the name. Decorative: the name is the text. */
+.cfp-console .cfp-band__name::before {
+  flex: none;
+  inline-size: 3.05rem;
+  block-size: 2rem;
+  background: url("../images/logo.svg") no-repeat center / contain;
+  content: "";
 }
 
 .cfp-band__purpose {

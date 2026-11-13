@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- New Cloudflare Purge logo: in the header band of every Cloudflare Purge admin page, and as `logo.png` (512 px square) for Project Browser and the drupal.org project page.
 - Extend and Appearance pages: every module and theme description is a short, professional statement that begins with a verb; credits, links and version notes moved out of the info files.
 
 ### Security
